@@ -47,7 +47,7 @@ jobs:
 
       - name: Pack Rymote.Radiant.Postgres
         run: |
-          dotnet pack Rymote.Postgres.Mongo/Rymote.Postgres.Mongo.csproj \
+          dotnet pack Rymote.Radiant.Postgres/Rymote.Radiant.Postgres.csproj \
             --configuration Release \
             --no-build \
             --output ./artifacts \
