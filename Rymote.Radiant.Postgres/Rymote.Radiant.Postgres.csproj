@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
 
-        <PackageId>Rymote.Radiant.Core</PackageId>
+        <PackageId>Rymote.Radiant.Postgres</PackageId>
         <Authors>Rymote</Authors>
         <Description>PostgreSQL integration for Radiant Database Engine</Description>
     </PropertyGroup>
