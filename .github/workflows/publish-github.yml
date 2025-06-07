@@ -34,25 +34,17 @@ jobs:
           dotnet restore
           dotnet build --configuration Release --no-restore
 
-      - name: Pack Rymote.Radiant.Core
+      - name: Pack Rymote.Radiant
         run: |
-          dotnet pack Rymote.Radiant.Core/Rymote.Radiant.Core.csproj \
+          dotnet pack Rymote.Radiant/Rymote.Radiant.csproj \
             --configuration Release \
             --no-build \
             --output ./artifacts \
             /p:Version=${{ env.VERSION }}
 
-      - name: Pack Rymote.Radiant.Mongo
+      - name: Pack Rymote.Radiant.Generator
         run: |
-          dotnet pack Rymote.Radiant.Mongo/Rymote.Radiant.Mongo.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./artifacts \
-            /p:Version=${{ env.VERSION }}
-
-      - name: Pack Rymote.Radiant.Postgres
-        run: |
-          dotnet pack Rymote.Radiant.Postgres/Rymote.Radiant.Postgres.csproj \
+          dotnet pack Rymote.Radiant.Generator/Rymote.Radiant.Generator.csproj \
             --configuration Release \
             --no-build \
             --output ./artifacts \
