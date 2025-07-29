@@ -8,16 +8,11 @@
 
     <ItemGroup>
         <PackageReference Include="Dapper" Version="2.1.66"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0"/>
         <PackageReference Include="Npgsql" Version="9.0.3"/>
         <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0"/>
         <PackageReference Include="System.Data.Common" Version="4.3.0"/>
         <PackageReference Include="System.Text.Json" Version="9.0.5"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\Rymote.Radiant.Generator\Rymote.Radiant.Generator.csproj"
-                          OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
 </Project>

@@ -41,14 +41,6 @@ jobs:
             --no-build \
             --output ./artifacts \
             /p:Version=${{ env.VERSION }}
-
-      - name: Pack Rymote.Radiant.Generator
-        run: |
-          dotnet pack Rymote.Radiant.Generator/Rymote.Radiant.Generator.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./artifacts \
-            /p:Version=${{ env.VERSION }}
           
       - name: Push packages to GitHub Packages
         env:
