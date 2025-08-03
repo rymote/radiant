@@ -33,7 +33,7 @@ public sealed class SetOperationClause : IQueryClause
             .Append(SqlKeywords.SPACE);
         
         QueryCommand queryCommand = Query.Build();
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand.SqlText).Append(SqlKeywords.CLOSE_PAREN);
+        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand).Append(SqlKeywords.CLOSE_PAREN);
         
         foreach (string parameterName in queryCommand.Parameters.ParameterNames)
         {

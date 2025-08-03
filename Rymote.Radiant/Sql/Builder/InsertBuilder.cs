@@ -4,6 +4,7 @@ using Rymote.Radiant.Sql.Clauses.Insert;
 using Rymote.Radiant.Sql.Clauses.Returning;
 using Rymote.Radiant.Sql.Clauses.Table;
 using Rymote.Radiant.Sql.Compiler;
+using Rymote.Radiant.Sql.Expressions;
 using Rymote.Radiant.Sql.Parameters;
 using Rymote.Radiant.Sql.Validation;
 
@@ -14,12 +15,14 @@ public sealed class InsertBuilder : IQueryBuilder
     public InsertClause InsertClause { get; } = new();
     public TableClause? TableClause { get; private set; }
     public ValuesClause? ValuesClause { get; private set; }
+    public ValuesExpressionClause? ValuesExpressionClause { get; private set; }
     public MultipleValuesClause? MultipleValuesClause { get; private set; }
     public IQueryBuilder? SelectQuery { get; private set; }
     public OnConflictClause? OnConflictClause { get; private set; }
     public ReturningClause? ReturningClause { get; private set; }
 
     internal readonly List<(string ColumnName, object Value)> columnValues = [];
+    internal readonly List<(string ColumnName, ISqlExpression Expression)> columnExpressions = [];
     internal readonly List<string> targetColumns = [];
     private bool isMultipleValues = false;
 
@@ -50,6 +53,24 @@ public sealed class InsertBuilder : IQueryBuilder
         return this;
     }
 
+    public InsertBuilder ValueExpression(string columnName, ISqlExpression expression)
+    {
+        QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
+            "Column name is required for VALUES clause");
+
+        QueryBuilderStateValidator.ValidateBuilderState(TableClause != null, "InsertBuilder",
+            "Into", "ValueExpression");
+
+        if (columnExpressions.Any(columnExpr => columnExpr.ColumnName == columnName))
+            QueryBuilderStateValidator.ValidateBuilderState(false, "InsertBuilder",
+                $"Column '{columnName}' has already been specified in the VALUES clause. Each column can only be specified once.");
+
+        columnExpressions.Add((columnName, expression));
+
+        ValuesExpressionClause ??= new ValuesExpressionClause([], []);
+        return this;
+    }
+    
     public InsertBuilder Columns(params string[] columnNames)
     {
         QueryBuilderStateValidator.ValidateNotEmpty(columnNames, nameof(columnNames), 
@@ -113,7 +134,7 @@ public sealed class InsertBuilder : IQueryBuilder
                 throw new ArgumentException($"Property '{columnName}' not found on type '{entityType.Name}'");
 
             object? value = property.GetValue(entity);
-            values.Add(value ?? DBNull.Value);
+            values.Add(value ?? null);
         }
 
         MultipleValuesClause!.AddValueRow(values);
@@ -174,13 +195,27 @@ public sealed class InsertBuilder : IQueryBuilder
 
     internal void PrepareClauses(ParameterBag parameterBag)
     {
-        if (ValuesClause is { ColumnNames.Count: > 0 }) return;
-
-        if (columnValues.Count > 0)
+        if (columnExpressions.Count > 0 && columnValues.Count > 0)
         {
-            QueryBuilderStateValidator.ValidateNotEmpty(columnValues, nameof(columnValues), 
-                "At least one column-value pair is required before compilation. Call Value() to add column values.");
-
+            foreach ((string columnName, object value) in columnValues)
+            {
+                string parameterName = parameterBag.Add(value);
+                ISqlExpression parameterExpression = new RawSqlExpression($"@{parameterName}");
+                columnExpressions.Add((columnName, parameterExpression));
+            }
+        
+            columnValues.Clear();
+        }
+    
+        if (columnExpressions.Count > 0)
+        {
+            List<string> columnNames = columnExpressions.Select(expression => expression.ColumnName).ToList();
+            List<ISqlExpression> expressions = columnExpressions.Select(expression => expression.Expression).ToList();
+        
+            ValuesExpressionClause = new ValuesExpressionClause(columnNames, expressions);
+        }
+        else if (columnValues.Count > 0)
+        {
             List<string> columnNames = columnValues.Select(valueTuple => valueTuple.ColumnName).ToList();
             List<string> parameterNames = columnValues
                 .Select(valueTuple => parameterBag.Add(valueTuple.Value))

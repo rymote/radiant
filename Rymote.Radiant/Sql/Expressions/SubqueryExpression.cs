@@ -18,7 +18,7 @@ public sealed class SubqueryExpression : ISqlExpression
 
     public void AppendTo(StringBuilder stringBuilder)
     {
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(Query.Build().SqlText).Append(SqlKeywords.CLOSE_PAREN);
+        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(Query.Build()).Append(SqlKeywords.CLOSE_PAREN);
         
         if (!string.IsNullOrEmpty(Alias))
             stringBuilder
@@ -29,7 +29,7 @@ public sealed class SubqueryExpression : ISqlExpression
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
         QueryCommand queryCommand = Query.Build();
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand.SqlText).Append(SqlKeywords.CLOSE_PAREN);
+        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand).Append(SqlKeywords.CLOSE_PAREN);
         
         if (!string.IsNullOrEmpty(Alias))
             stringBuilder

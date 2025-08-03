@@ -37,6 +37,22 @@ jobs:
             --output ./artifacts \
             /p:Version=${{ env.VERSION }}
 
+      - name: Pack Rymote.Radiant.Analyzers
+        run: |
+          dotnet pack Rymote.Radiant.Analyzers/Rymote.Radiant.Analyzers \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ env.VERSION }}
+
+      - name: Pack Rymote.Radiant.Generators
+        run: |
+          dotnet pack Rymote.Radiant.Generators/Rymote.Radiant.Generators \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ env.VERSION }}
+          
       - name: Push to nuget.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

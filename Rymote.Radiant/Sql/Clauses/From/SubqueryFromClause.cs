@@ -21,7 +21,7 @@ public sealed class SubqueryFromClause : IQueryClause
         stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.FROM).Append(SqlKeywords.SPACE);
         
         QueryCommand queryCommand = Query.Build();
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand.SqlText).Append(SqlKeywords.CLOSE_PAREN);
+        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand).Append(SqlKeywords.CLOSE_PAREN);
         stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE);
         stringBuilder.Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
         

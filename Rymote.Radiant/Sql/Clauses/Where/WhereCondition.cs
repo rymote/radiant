@@ -19,11 +19,38 @@ public sealed class WhereCondition : IWhereExpression
     
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
-        string parameterName = parameterBag.Add(Value);
-        
         stringBuilder
             .Append(SqlKeywords.QUOTE).Append(ColumnName).Append(SqlKeywords.QUOTE)
-            .Append(SqlKeywords.SPACE).Append(OperatorSymbol).Append(SqlKeywords.SPACE)
-            .Append(SqlKeywords.PARAMETER_PREFIX).Append(parameterName);
+            .Append(SqlKeywords.SPACE).Append(OperatorSymbol).Append(SqlKeywords.SPACE);
+
+        if ((OperatorSymbol.Equals("IS", StringComparison.OrdinalIgnoreCase) || 
+             OperatorSymbol.Equals("IS NOT", StringComparison.OrdinalIgnoreCase)) && 
+            Value == null)
+        {
+            stringBuilder.Append(SqlKeywords.NULL);
+        }
+        else if ((OperatorSymbol.Equals("IN", StringComparison.OrdinalIgnoreCase) || 
+                  OperatorSymbol.Equals("NOT IN", StringComparison.OrdinalIgnoreCase)) && 
+                 Value is Array array)
+        {
+            stringBuilder.Append(SqlKeywords.OPEN_PAREN);
+            
+            for (int index = 0; index < array.Length; index++)
+            {
+                if (index > 0)
+                    stringBuilder.Append(SqlKeywords.COMMA);
+                
+                object? element = array.GetValue(index);
+                string parameterName = parameterBag.Add(element);
+                stringBuilder.Append(SqlKeywords.PARAMETER_PREFIX).Append(parameterName);
+            }
+            
+            stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
+        }
+        else
+        {
+            string parameterName = parameterBag.Add(Value);
+            stringBuilder.Append(SqlKeywords.PARAMETER_PREFIX).Append(parameterName);
+        }
     }
 }

@@ -6,9 +6,22 @@ namespace Rymote.Radiant.Sql.Clauses.Update;
 
 public sealed class SetClause : IQueryClause
 {
-    public IReadOnlyList<(string ColumnName, string ParameterName)> Assignments { get; }
-    public SetClause(IReadOnlyList<(string ColumnName, string ParameterName)> assignments) =>
+    public IReadOnlyList<SetAssignment> Assignments { get; }
+    
+    public SetClause(IReadOnlyList<(string ColumnName, string ParameterName)> assignments)
+    {
+        List<SetAssignment> setAssignments = new List<SetAssignment>();
+        foreach ((string columnName, string parameterName) in assignments)
+        {
+            setAssignments.Add(new SetParameterAssignment(columnName, parameterName));
+        }
+        Assignments = setAssignments;
+    }
+    
+    public SetClause(IReadOnlyList<SetAssignment> assignments)
+    {
         Assignments = assignments;
+    }
 
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
@@ -19,16 +32,17 @@ public sealed class SetClause : IQueryClause
         
         for (int index = 0; index < Assignments.Count; index++)
         {
-            (string columnName, string parameterName) = Assignments[index];
+            SetAssignment assignment = Assignments[index];
             stringBuilder
                 .Append(SqlKeywords.QUOTE)
-                .Append(columnName)
+                .Append(assignment.ColumnName)
                 .Append(SqlKeywords.QUOTE)
-                .Append(SqlKeywords.EQUALS)
-                .Append(SqlKeywords.PARAMETER_PREFIX)
-                .Append(parameterName);
+                .Append(SqlKeywords.EQUALS);
+                
+            assignment.AppendValueTo(stringBuilder);
             
-            if (index < Assignments.Count - 1) stringBuilder.Append(SqlKeywords.COMMA);
+            if (index < Assignments.Count - 1) 
+                stringBuilder.Append(SqlKeywords.COMMA);
         }
     }
 }

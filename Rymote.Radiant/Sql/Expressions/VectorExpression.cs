@@ -17,10 +17,10 @@ public sealed class VectorExpression : ISqlExpression
     public VectorOperator Operator { get; }
     public ISqlExpression RightVector { get; }
 
-    public VectorExpression(ISqlExpression leftVector, VectorOperator op, ISqlExpression rightVector)
+    public VectorExpression(ISqlExpression leftVector, VectorOperator vectorOperator, ISqlExpression rightVector)
     {
         LeftVector = leftVector;
-        Operator = op;
+        Operator = vectorOperator;
         RightVector = rightVector;
     }
 

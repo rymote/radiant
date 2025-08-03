@@ -1,6 +1,8 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
+using System.Linq;
+using Rymote.Radiant.Sql.Expressions;
 
 namespace Rymote.Radiant.Sql.Clauses.Where;
 
@@ -46,6 +48,12 @@ public sealed class WhereGroup : IWhereExpression
         return this;
     }
 
+    public void AndBooleanExpression(ISqlExpression booleanExpression)
+    {
+        WhereBooleanExpression whereBooleanExpression = new WhereBooleanExpression(booleanExpression);
+        expressions.Add((whereBooleanExpression, expressions.Count == 0 ? null : WhereLogicalOperator.And));
+    }
+    
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
         if (expressions.Count == 0) 

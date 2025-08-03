@@ -14,16 +14,16 @@ public sealed class QueryExecutor
 
     public async Task<IEnumerable<T>> QueryAsync<T>(QueryCommand queryCommand)
     {
-        return await databaseConnection.QueryAsync<T>(queryCommand.SqlText, queryCommand.Parameters);
+        return await databaseConnection.QueryAsync<T>(queryCommand, queryCommand.Parameters);
     }
 
     public async Task<T> QuerySingleAsync<T>(QueryCommand queryCommand)
     {
-        return await databaseConnection.QuerySingleAsync<T>(queryCommand.SqlText, queryCommand.Parameters);
+        return await databaseConnection.QuerySingleAsync<T>(queryCommand, queryCommand.Parameters);
     }
 
     public async Task<int> ExecuteAsync(QueryCommand queryCommand)
     {
-        return await databaseConnection.ExecuteAsync(queryCommand.SqlText, queryCommand.Parameters);
+        return await databaseConnection.ExecuteAsync(queryCommand, queryCommand.Parameters);
     }
 }

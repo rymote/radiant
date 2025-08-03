@@ -42,7 +42,7 @@ public sealed class LateralJoinClause : IQueryClause
         
         QueryCommand subQueryCommand = SubQuery.Build();
         stringBuilder.Append(SqlKeywords.OPEN_PAREN)
-            .Append(subQueryCommand.SqlText)
+            .Append(subQueryCommand)
             .Append(SqlKeywords.CLOSE_PAREN);
             
         stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)

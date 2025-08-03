@@ -46,7 +46,7 @@ public sealed class CteClause : IQueryClause
             .Append(SqlKeywords.CLOSE_PAREN);
 
         QueryCommand queryCommand = Query.Build();
-        stringBuilder.Append(queryCommand.SqlText);
+        stringBuilder.Append(queryCommand);
         stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
 
         foreach (string parameterName in queryCommand.Parameters.ParameterNames)

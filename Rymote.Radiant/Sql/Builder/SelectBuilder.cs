@@ -210,6 +210,30 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
+    public SelectBuilder WhereNull(string columnName)
+    {
+        QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
+            "Column name is required for WHERE IS NULL condition");
+
+        QueryBuilderStateValidator.ValidateBuilderState(FromClause != null, "SelectBuilder",
+            "From", "WhereNull");
+
+        WhereClause.Where(columnName, "IS", (object)null);
+        return this;
+    }
+
+    public SelectBuilder WhereNotNull(string columnName)
+    {
+        QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
+            "Column name is required for WHERE IS NOT NULL condition");
+
+        QueryBuilderStateValidator.ValidateBuilderState(FromClause != null, "SelectBuilder",
+            "From", "WhereNotNull");
+
+        WhereClause.Where(columnName, "IS NOT", (object)null);
+        return this;
+    }
+    
     public SelectBuilder WhereExists(IQueryBuilder subquery)
     {
         QueryBuilderStateValidator.ValidateNotNull(subquery, nameof(subquery),
@@ -233,6 +257,18 @@ public sealed class SelectBuilder : IQueryBuilder
 
         SubqueryExpression subqueryExpression = new SubqueryExpression(subquery);
         WhereClause.Where(SqlKeywords.NOT_EXISTS, "", subqueryExpression);
+        return this;
+    }
+    
+    public SelectBuilder WhereBooleanExpression(ISqlExpression booleanExpression)
+    {
+        QueryBuilderStateValidator.ValidateNotNull(booleanExpression, nameof(booleanExpression),
+            "Boolean expression cannot be null");
+
+        QueryBuilderStateValidator.ValidateBuilderState(FromClause != null, "SelectBuilder",
+            "From", "WhereBooleanExpression");
+
+        WhereClause.AddBooleanExpression(booleanExpression);
         return this;
     }
 

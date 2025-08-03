@@ -71,38 +71,45 @@ public sealed class ArrayExpression : ISqlExpression
 
 public sealed class ArrayLiteralExpression : ISqlExpression
 {
-    public object[] Values { get; }
+    public Array Value { get; }
 
-    public ArrayLiteralExpression(object[] values)
+    public ArrayLiteralExpression(Array value)
     {
-        Values = values;
+        Value = value;
     }
 
     public void AppendTo(StringBuilder stringBuilder)
     {
-        stringBuilder.Append(SqlKeywords.ARRAY).Append(SqlKeywords.OPEN_BRACKET);
-
-        for (int index = 0; index < Values.Length; index++)
+        stringBuilder.Append("ARRAY[");
+        
+        for (int index = 0; index < Value.Length; index++)
         {
-            if (index > 0) stringBuilder.Append(SqlKeywords.COMMA);
-
-            switch (Values[index])
+            object? element = Value.GetValue(index);
+            
+            if (element == null)
             {
-                case string str:
-                    stringBuilder.Append(SqlKeywords.SINGLE_QUOTE).Append(str).Append(SqlKeywords.SINGLE_QUOTE);
-                    break;
-
-                case null:
-                    stringBuilder.Append(SqlKeywords.NULL);
-                    break;
-
-                default:
-                    stringBuilder.Append(Values[index]);
-                    break;
+                stringBuilder.Append(SqlKeywords.NULL);
             }
+            else if (element is string str)
+            {
+                stringBuilder.Append(SqlKeywords.SINGLE_QUOTE)
+                    .Append(str.Replace(SqlKeywords.SINGLE_QUOTE, SqlKeywords.SINGLE_QUOTE + SqlKeywords.SINGLE_QUOTE))
+                    .Append(SqlKeywords.SINGLE_QUOTE);
+            }
+            else if (element is bool boolean)
+            {
+                stringBuilder.Append(boolean ? SqlKeywords.TRUE : SqlKeywords.FALSE);
+            }
+            else
+            {
+                stringBuilder.Append(element);
+            }
+            
+            if (index < Value.Length - 1)
+                stringBuilder.Append(SqlKeywords.COMMA);
         }
-
-        stringBuilder.Append(SqlKeywords.CLOSE_BRACKET);
+        
+        stringBuilder.Append("]");
     }
 }
 

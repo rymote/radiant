@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "DebugRoslynSourceGenerator": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "../Rymote.Radiant.Generators.Sample/Rymote.Radiant.Generators.Sample.csproj"
+    }
+  }
+}
