@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
+using Rymote.Radiant.Smart.Connection;
 using Rymote.Radiant.Smart.Metadata;
 using Rymote.Radiant.Smart.Query;
 using Rymote.Radiant.Smart.Repository;
@@ -15,30 +16,34 @@ namespace Rymote.Radiant.Smart;
 
 public abstract class SmartModel
 {
-    private static IDbConnection? defaultConnection;
+    private static IConnectionResolver? connectionResolver;
     private static IModelMetadataCache? metadataCache;
 
     public static void Configure(IDbConnection connection, IModelMetadataCache cache)
     {
-        defaultConnection = connection;
+        connectionResolver = new StaticConnectionResolver(connection);
         metadataCache = cache;
     }
 
+    public static void Configure(IConnectionResolver resolver, IModelMetadataCache cache)
+    {
+        connectionResolver = resolver;
+        metadataCache = cache;
+    }
+    
     protected static IDbConnection GetConnection()
     {
-        if (defaultConnection == null)
-        {
+        if (connectionResolver == null)
             throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() first.");
-        }
-        return defaultConnection;
+        
+        return connectionResolver.GetConnection();
     }
 
     public static IModelMetadataCache GetMetadataCache()
     {
         if (metadataCache == null)
-        {
             throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() first.");
-        }
+            
         return metadataCache;
     }
 }
@@ -77,9 +82,7 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
         
         if (metadata.PrimaryKey == null)
-        {
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
-        }
 
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(new RawSqlExpression("*"))
@@ -119,13 +122,9 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         object? primaryKeyValue = GetPrimaryKeyValue(metadata);
         
         if (primaryKeyValue == null || IsDefaultValue(primaryKeyValue))
-        {
             return await repository.InsertAsync((TModel)this);
-        }
         else
-        {
             return await repository.UpdateAsync((TModel)this);
-        }
     }
 
     public async Task<bool> DeleteAsync()
@@ -135,13 +134,9 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
         
         if (metadata.HasSoftDelete)
-        {
             return await repository.SoftDeleteAsync((TModel)this);
-        }
         else
-        {
             return await repository.DeleteAsync((TModel)this);
-        }
     }
 
     public async Task<bool> RestoreAsync()
@@ -150,9 +145,7 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
         
         if (!metadata.HasSoftDelete)
-        {
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
-        }
         
         ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
         return await repository.RestoreAsync((TModel)this);
@@ -169,9 +162,7 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
     private object? GetPrimaryKeyValue(IModelMetadata metadata)
     {
         if (metadata.PrimaryKey == null)
-        {
             return null;
-        }
 
         return metadata.PrimaryKey.PropertyInfo.GetValue(this);
     }
@@ -195,9 +186,7 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
             .FirstOrDefault(property => property.PropertyName == propertyName);
 
         if (propertyMetadata != null)
-        {
             return propertyMetadata.ColumnName;
-        }
 
         return ConvertPropertyNameToColumnName(propertyName);
     }
