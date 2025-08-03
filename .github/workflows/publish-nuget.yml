@@ -39,7 +39,7 @@ jobs:
 
       - name: Pack Rymote.Radiant.Analyzers
         run: |
-          dotnet pack Rymote.Radiant.Analyzers/Rymote.Radiant.Analyzers \
+          dotnet pack Rymote.Radiant.Analyzers/Rymote.Radiant.Analyzers.csproj \
             --configuration Release \
             --no-build \
             --output ./artifacts \
@@ -47,7 +47,7 @@ jobs:
 
       - name: Pack Rymote.Radiant.Generators
         run: |
-          dotnet pack Rymote.Radiant.Generators/Rymote.Radiant.Generators \
+          dotnet pack Rymote.Radiant.Generators/Rymote.Radiant.Generators.csproj \
             --configuration Release \
             --no-build \
             --output ./artifacts \
