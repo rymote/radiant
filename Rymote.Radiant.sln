@@ -2,9 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rymote.Radiant", "Rymote.Radiant\Rymote.Radiant.csproj", "{D99BDA6A-0FDF-4E72-AC17-4FC750BA96B6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rymote.Radiant.Analyzers", "Rymote.Radiant.Analyzers\Rymote.Radiant.Analyzers\Rymote.Radiant.Analyzers.csproj", "{447FA32F-1D39-4729-8511-7535DD6EE03A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rymote.Radiant.Analyzers", "Rymote.Radiant.Analyzers\Rymote.Radiant.Analyzers.csproj", "{447FA32F-1D39-4729-8511-7535DD6EE03A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rymote.Radiant.Generators", "Rymote.Radiant.Generators\Rymote.Radiant.Generators\Rymote.Radiant.Generators.csproj", "{9148A641-C3A1-4332-8BAE-303B58F6CE2B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rymote.Radiant.Generators", "Rymote.Radiant.Generators\Rymote.Radiant.Generators.csproj", "{9148A641-C3A1-4332-8BAE-303B58F6CE2B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Playground", "Playground\Playground.csproj", "{CDFF4872-F0AE-4BDE-90CD-8C48AEE80F67}"
 EndProject

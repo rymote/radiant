@@ -9,8 +9,13 @@
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
 
-        <RootNamespace>Rymote.Radiant.Generators</RootNamespace>
-        <PackageId>Rymote.Radiant.Generators</PackageId>
+        <RootNamespace>Rymote.Radiant.Analyzers</RootNamespace>
+        <AssemblyName>Rymote.Radiant.Analyzers</AssemblyName>
+
+        <PackageId>Rymote.Radiant.Analyzers</PackageId>
+        <Authors>Rymote</Authors>
+        <Description>PostgreSQL Advanced SQL builder and smart ORM roslyn analyzers</Description>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
@@ -22,5 +27,9 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.3.0"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <AdditionalFiles Remove="AnalyzerReleases.Shipped.md" />
+      <AdditionalFiles Remove="AnalyzerReleases.Unshipped.md" />
+    </ItemGroup>
 
 </Project>
