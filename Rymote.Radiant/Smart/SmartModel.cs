@@ -16,35 +16,35 @@ namespace Rymote.Radiant.Smart;
 
 public abstract class SmartModel
 {
-    private static IConnectionResolver? connectionResolver;
-    private static IModelMetadataCache? metadataCache;
+    private static IConnectionResolver? _connectionResolver;
+    private static IModelMetadataCache? _modelMetadataCache;
 
     public static void Configure(IDbConnection connection, IModelMetadataCache cache)
     {
-        connectionResolver = new StaticConnectionResolver(connection);
-        metadataCache = cache;
+        _connectionResolver = new StaticConnectionResolver(connection);
+        _modelMetadataCache = cache;
     }
 
     public static void Configure(IConnectionResolver resolver, IModelMetadataCache cache)
     {
-        connectionResolver = resolver;
-        metadataCache = cache;
+        _connectionResolver = resolver;
+        _modelMetadataCache = cache;
     }
     
     protected static IDbConnection GetConnection()
     {
-        if (connectionResolver == null)
+        if (_connectionResolver == null)
             throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() first.");
         
-        return connectionResolver.GetConnection();
+        return _connectionResolver.GetConnection();
     }
 
     public static IModelMetadataCache GetMetadataCache()
     {
-        if (metadataCache == null)
+        if (_modelMetadataCache == null)
             throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() first.");
             
-        return metadataCache;
+        return _modelMetadataCache;
     }
 }
 

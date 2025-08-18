@@ -4,12 +4,12 @@ namespace Rymote.Radiant.Smart.Connection;
 
 public class StaticConnectionResolver : IConnectionResolver
 {
-    private readonly IDbConnection connection;
+    private readonly IDbConnection _connection;
     
     public StaticConnectionResolver(IDbConnection connection)
     {
-        this.connection = connection;
+        _connection = connection;
     }
     
-    public IDbConnection GetConnection() => connection;
+    public IDbConnection GetConnection() => _connection;
 }

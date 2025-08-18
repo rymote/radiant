@@ -5,16 +5,16 @@ namespace Rymote.Radiant.Smart.Connection;
 
 public class ScopedConnectionResolver : IConnectionResolver
 {
-    private readonly IServiceProvider serviceProvider;
+    private readonly IServiceProvider _serviceProvider;
     
     public ScopedConnectionResolver(IServiceProvider serviceProvider)
     {
-        this.serviceProvider = serviceProvider;
+        _serviceProvider = serviceProvider;
     }
     
     public IDbConnection GetConnection()
     {
-        return serviceProvider.GetService<IDbConnection>() 
+        return _serviceProvider.GetService<IDbConnection>() 
                ?? throw new InvalidOperationException("No IDbConnection registered in the service container");
     }
 }

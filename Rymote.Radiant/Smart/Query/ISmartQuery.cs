@@ -28,6 +28,7 @@ public interface ISmartQuery<TModel> where TModel : class, new()
     ISmartQuery<TModel> Take(int count);
     
     ISmartQuery<TModel> Include(Expression<Func<TModel, object>> navigationProperty);
+    ISmartQuery<TModel> Include(string navigationPath);
     ISmartQuery<TModel> WithTrashed();
     ISmartQuery<TModel> OnlyTrashed();
     

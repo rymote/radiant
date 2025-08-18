@@ -17,64 +17,63 @@ namespace Rymote.Radiant.Smart.Query;
 
 public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : class, new()
 {
-    private readonly IDbConnection databaseConnection;
-    private readonly IModelMetadata modelMetadata;
-    private readonly SelectBuilder selectBuilder;
-    private readonly List<Expression<Func<TModel, object>>> includeExpressions;
-    private bool includeSoftDeleted;
-    private bool onlySoftDeleted;
-    private int? skipCount;
-    private int? takeCount;
-    private readonly IRelationshipLoader relationshipLoader;
+    private readonly IDbConnection _databaseConnection;
+    private readonly IModelMetadata _modelMetadata;
+    private readonly SelectBuilder _selectBuilder;
+    private readonly List<Expression<Func<TModel, object>>> _includeExpressions;
+    private readonly List<string> _includePaths = new List<string>();
+    private bool _includeSoftDeleted;
+    private bool _onlySoftDeleted;
+    private int? _skipCount;
+    private int? _takeCount;
+    private readonly IRelationshipLoader _relationshipLoader;
 
     public SmartQuery(IDbConnection databaseConnection, IModelMetadata modelMetadata)
     {
-        this.databaseConnection = databaseConnection;
-        this.modelMetadata = modelMetadata;
-        this.selectBuilder = new SelectBuilder();
-        this.includeExpressions = new List<Expression<Func<TModel, object>>>();
-        this.includeSoftDeleted = false;
-        this.onlySoftDeleted = false;
-        this.skipCount = null;
-        this.takeCount = null;
+        _databaseConnection = databaseConnection;
+        _modelMetadata = modelMetadata;
+        _selectBuilder = new SelectBuilder();
+        _includeExpressions = new List<Expression<Func<TModel, object>>>();
+        _includeSoftDeleted = false;
+        _onlySoftDeleted = false;
+        _skipCount = null;
+        _takeCount = null;
         IModelMetadataCache metadataCache = SmartModel.GetMetadataCache();
-        this.relationshipLoader = new RelationshipLoader<TModel>(modelMetadata, databaseConnection, metadataCache);
+        _relationshipLoader = new RelationshipLoader<TModel>(modelMetadata, databaseConnection, metadataCache);
 
         InitializeSelectBuilder();
     }
 
     private void InitializeSelectBuilder()
     {
-        List<ISqlExpression> columnExpressions = modelMetadata.Properties.Values
+        List<ISqlExpression> columnExpressions = _modelMetadata.Properties.Values
             .Select(property => new RawSqlExpression($"\"{property.ColumnName}\" AS \"{property.PropertyName}\"") as ISqlExpression)
             .ToList();
 
-        selectBuilder.Select(columnExpressions.ToArray())
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+        _selectBuilder.Select(columnExpressions.ToArray())
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
-        if (modelMetadata.HasSoftDelete && !includeSoftDeleted && modelMetadata.DeletedAtPropertyName != null)
+        if (_modelMetadata.HasSoftDelete && !_includeSoftDeleted && _modelMetadata.DeletedAtPropertyName != null)
         {
-            string deletedAtColumnName = GetColumnNameFromPropertyName(modelMetadata.DeletedAtPropertyName);
-            selectBuilder.WhereNull(deletedAtColumnName);
+            string deletedAtColumnName = GetColumnNameFromPropertyName(_modelMetadata.DeletedAtPropertyName);
+            _selectBuilder.WhereNull(deletedAtColumnName);
         }
     }
 
     public ISmartQuery<TModel> Where(Expression<Func<TModel, bool>> predicate)
     {
-        WhereExpressionVisitor visitor = new WhereExpressionVisitor(modelMetadata);
+        WhereExpressionVisitor visitor = new WhereExpressionVisitor(_modelMetadata);
         visitor.Visit(predicate);
 
         foreach ((string columnName, string operatorSymbol, object value) in visitor.Conditions)
-        {
-            selectBuilder.Where(columnName, operatorSymbol, value);
-        }
+            _selectBuilder.Where(columnName, operatorSymbol, value);
 
         return this;
     }
 
     public ISmartQuery<TModel> Where(string columnName, string operatorSymbol, object value)
     {
-        selectBuilder.Where(columnName, operatorSymbol, value);
+        _selectBuilder.Where(columnName, operatorSymbol, value);
         return this;
     }
 
@@ -82,130 +81,136 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         RawSqlExpression rawExpression = new RawSqlExpression(rawSql);
         string expressionString = SmartQueryExtensions.BuildExpressionString(rawExpression);
-        selectBuilder.Where(expressionString, SqlKeywords.EQUALS.Trim(), parameters.Length > 0 ? parameters[0] : true);
+        _selectBuilder.Where(expressionString, SqlKeywords.EQUALS.Trim(), parameters.Length > 0 ? parameters[0] : true);
         return this;
     }
 
     public ISmartQuery<TModel> WhereExists(IQueryBuilder subquery)
     {
-        selectBuilder.WhereExists(subquery);
+        _selectBuilder.WhereExists(subquery);
         return this;
     }
 
     public ISmartQuery<TModel> WhereNotExists(IQueryBuilder subquery)
     {
-        selectBuilder.WhereNotExists(subquery);
+        _selectBuilder.WhereNotExists(subquery);
         return this;
     }
 
     public ISmartQuery<TModel> WhereIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery)
     {
         string columnName = GetColumnNameFromExpression(property);
-        selectBuilder.Where(columnName, "IN", subquery);
+        _selectBuilder.Where(columnName, "IN", subquery);
         return this;
     }
 
     public ISmartQuery<TModel> WhereNotIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery)
     {
         string columnName = GetColumnNameFromExpression(property);
-        selectBuilder.Where(columnName, "NOT IN", subquery);
+        _selectBuilder.Where(columnName, "NOT IN", subquery);
         return this;
     }
 
     public ISmartQuery<TModel> OrWhere(Expression<Func<TModel, bool>> predicate)
     {
-        WhereExpressionVisitor visitor = new WhereExpressionVisitor(modelMetadata);
+        WhereExpressionVisitor visitor = new WhereExpressionVisitor(_modelMetadata);
         visitor.Visit(predicate);
 
         foreach ((string columnName, string operatorSymbol, object value) in visitor.Conditions)
-        {
-            selectBuilder.Or(columnName, operatorSymbol, value);
-        }
+            _selectBuilder.Or(columnName, operatorSymbol, value);
 
         return this;
     }
 
     public ISmartQuery<TModel> OrWhere(string columnName, string operatorSymbol, object value)
     {
-        selectBuilder.Or(columnName, operatorSymbol, value);
+        _selectBuilder.Or(columnName, operatorSymbol, value);
         return this;
     }
 
     public ISmartQuery<TModel> OrderBy(Expression<Func<TModel, object>> keySelector)
     {
         string columnName = GetColumnNameFromExpression(keySelector);
-        selectBuilder.OrderBy(columnName, SortDirection.Ascending);
+        _selectBuilder.OrderBy(columnName, SortDirection.Ascending);
         return this;
     }
 
     public ISmartQuery<TModel> OrderByDescending(Expression<Func<TModel, object>> keySelector)
     {
         string columnName = GetColumnNameFromExpression(keySelector);
-        selectBuilder.OrderBy(columnName, SortDirection.Descending);
+        _selectBuilder.OrderBy(columnName, SortDirection.Descending);
         return this;
     }
 
     public ISmartQuery<TModel> OrderByRaw(string rawSql)
     {
-        selectBuilder.OrderBy(rawSql, SortDirection.Ascending);
+        _selectBuilder.OrderBy(rawSql, SortDirection.Ascending);
         return this;
     }
 
     public ISmartQuery<TModel> Skip(int count)
     {
-        skipCount = count;
+        _skipCount = count;
         return this;
     }
 
     public ISmartQuery<TModel> Take(int count)
     {
-        takeCount = count;
+        _takeCount = count;
         return this;
     }
 
     public ISmartQuery<TModel> Include(Expression<Func<TModel, object>> navigationProperty)
     {
-        includeExpressions.Add(navigationProperty);
+        _includeExpressions.Add(navigationProperty);
+        return this;
+    }
+
+    public ISmartQuery<TModel> Include(string navigationPath)
+    {
+        if (string.IsNullOrWhiteSpace(navigationPath))
+            throw new ArgumentException("navigationPath cannot be null or empty", nameof(navigationPath));
+        
+        _includePaths.Add(navigationPath);
         return this;
     }
 
     public ISmartQuery<TModel> WithTrashed()
     {
-        includeSoftDeleted = true;
+        _includeSoftDeleted = true;
         return this;
     }
 
     public ISmartQuery<TModel> OnlyTrashed()
     {
-        if (!modelMetadata.HasSoftDelete)
-        {
+        if (!_modelMetadata.HasSoftDelete)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
-        }
 
-        onlySoftDeleted = true;
-        if (modelMetadata.DeletedAtPropertyName != null)
+        _onlySoftDeleted = true;
+        if (_modelMetadata.DeletedAtPropertyName != null)
         {
-            string deletedAtColumnName = GetColumnNameFromPropertyName(modelMetadata.DeletedAtPropertyName);
-            selectBuilder.Where(deletedAtColumnName, "IS NOT", null);
+            string deletedAtColumnName = GetColumnNameFromPropertyName(_modelMetadata.DeletedAtPropertyName);
+            _selectBuilder.Where(deletedAtColumnName, "IS NOT", null);
         }
+        
         return this;
     }
 
     public async Task<TModel?> FirstOrDefaultAsync()
     {
         ApplyLimitOffset();
-        if (takeCount == null)
-        {
-            selectBuilder.Limit(1);
-        }
         
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(selectBuilder.Build());
+        if (_takeCount == null)
+            _selectBuilder.Limit(1);
         
-        if (includeExpressions.Count > 0)
-        {
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
+        
+        if (_includeExpressions.Count > 0)
             await LoadRelationshipsAsync(results.ToList());
-        }
+        
+        if (_includePaths.Count > 0)
+            await LoadNestedRelationshipsAsync(results.ToList());
         
         return results.FirstOrDefault();
     }
@@ -214,9 +219,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         TModel? result = await FirstOrDefaultAsync();
         if (result == null)
-        {
             throw new InvalidOperationException("Sequence contains no elements");
-        }
+        
         return result;
     }
 
@@ -224,14 +228,15 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         ApplyLimitOffset();
         
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(selectBuilder.Build());
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
         List<TModel> resultList = results.ToList();
         
-        if (includeExpressions.Count > 0)
-        {
+        if (_includeExpressions.Count > 0)
             await LoadRelationshipsAsync(resultList);
-        }
+        
+        if (_includePaths.Count > 0)
+            await LoadNestedRelationshipsAsync(resultList);
         
         return resultList;
     }
@@ -240,61 +245,55 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         SelectBuilder countBuilder = new SelectBuilder()
             .Select(new RawSqlExpression("COUNT(*)"))
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
-        if (modelMetadata.HasSoftDelete && !includeSoftDeleted && !onlySoftDeleted && modelMetadata.DeletedAtPropertyName != null)
+        if (_modelMetadata.HasSoftDelete && !_includeSoftDeleted && !_onlySoftDeleted && _modelMetadata.DeletedAtPropertyName != null)
         {
-            string deletedAtColumnName = GetColumnNameFromPropertyName(modelMetadata.DeletedAtPropertyName);
+            string deletedAtColumnName = GetColumnNameFromPropertyName(_modelMetadata.DeletedAtPropertyName);
             countBuilder.WhereNull(deletedAtColumnName);
         }
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         return await executor.QuerySingleAsync<int>(countBuilder.Build());
     }
 
     public async Task<bool> AnyAsync()
     {
-        selectBuilder.Limit(1);
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(selectBuilder.Build());
+        _selectBuilder.Limit(1);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
         return results.Any();
     }
 
     public ISmartQuery<TModel> Join<TJoin>(string tableName, Expression<Func<TModel, TJoin, bool>> joinPredicate) where TJoin : class, new()
     {
-        JoinExpressionVisitor<TModel, TJoin> visitor = new JoinExpressionVisitor<TModel, TJoin>(modelMetadata, SmartModel.GetMetadataCache().GetMetadata<TJoin>());
+        JoinExpressionVisitor<TModel, TJoin> visitor = new JoinExpressionVisitor<TModel, TJoin>(_modelMetadata, SmartModel.GetMetadataCache().GetMetadata<TJoin>());
         visitor.Visit(joinPredicate);
         
         if (visitor.LeftColumn != null && visitor.RightColumn != null)
-        {
-            selectBuilder.InnerJoin(tableName, visitor.LeftColumn, visitor.RightColumn);
-        }
+            _selectBuilder.InnerJoin(tableName, visitor.LeftColumn, visitor.RightColumn);
         
         return this;
     }
 
     public ISmartQuery<TModel> LeftJoin<TJoin>(string tableName, Expression<Func<TModel, TJoin, bool>> joinPredicate) where TJoin : class, new()
     {
-        JoinExpressionVisitor<TModel, TJoin> visitor = new JoinExpressionVisitor<TModel, TJoin>(modelMetadata, SmartModel.GetMetadataCache().GetMetadata<TJoin>());
+        JoinExpressionVisitor<TModel, TJoin> visitor = new JoinExpressionVisitor<TModel, TJoin>(_modelMetadata, SmartModel.GetMetadataCache().GetMetadata<TJoin>());
         visitor.Visit(joinPredicate);
         
         if (visitor.LeftColumn != null && visitor.RightColumn != null)
-        {
-            selectBuilder.LeftJoin(tableName, visitor.LeftColumn, visitor.RightColumn);
-        }
+            _selectBuilder.LeftJoin(tableName, visitor.LeftColumn, visitor.RightColumn);
         
         return this;
     }
 
     public ISmartQuery<TModel> RightJoin<TJoin>(string tableName, Expression<Func<TModel, TJoin, bool>> joinPredicate) where TJoin : class, new()
     {
-        JoinExpressionVisitor<TModel, TJoin> visitor = new JoinExpressionVisitor<TModel, TJoin>(modelMetadata, SmartModel.GetMetadataCache().GetMetadata<TJoin>());
+        JoinExpressionVisitor<TModel, TJoin> visitor = new JoinExpressionVisitor<TModel, TJoin>(_modelMetadata, SmartModel.GetMetadataCache().GetMetadata<TJoin>());
         visitor.Visit(joinPredicate);
         
         if (visitor.LeftColumn != null && visitor.RightColumn != null)
-        {
-            selectBuilder.RightJoin(tableName, visitor.LeftColumn, visitor.RightColumn);
-        }
+            _selectBuilder.RightJoin(tableName, visitor.LeftColumn, visitor.RightColumn);
         
         return this;
     }
@@ -305,23 +304,23 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             .Select(selector => GetColumnNameFromExpression(selector))
             .ToArray();
             
-        selectBuilder.GroupBy(columnNames);
+        _selectBuilder.GroupBy(columnNames);
         return this;
     }
 
     public ISmartQuery<TModel> Having(string aggregateExpression, string operatorSymbol, object value)
     {
-        selectBuilder.Having(aggregateExpression, operatorSymbol, value);
+        _selectBuilder.Having(aggregateExpression, operatorSymbol, value);
         return this;
     }
 
     public ISmartQuery<TModel> SelectDistinct()
     {
-        List<ISqlExpression> columnExpressions = modelMetadata.Properties.Values
+        List<ISqlExpression> columnExpressions = _modelMetadata.Properties.Values
             .Select(property => new ColumnExpression(property.ColumnName) as ISqlExpression)
             .ToList();
 
-        selectBuilder.SelectDistinct(columnExpressions.ToArray());
+        _selectBuilder.SelectDistinct(columnExpressions.ToArray());
         return this;
     }
 
@@ -334,7 +333,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             $"{{\"{jsonPath}\": \"{value}\"}}"
         );
     
-        selectBuilder.WhereBooleanExpression(jsonExpression);
+        _selectBuilder.WhereBooleanExpression(jsonExpression);
         return this;
     }
 
@@ -347,7 +346,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             jsonPath
         );
     
-        selectBuilder.WhereBooleanExpression(jsonExpression);
+        _selectBuilder.WhereBooleanExpression(jsonExpression);
         return this;
     }
 
@@ -358,7 +357,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         FullTextExpression tsQueryExpression = FullTextExpression.PlainToTsQuery(language, searchQuery);
         FullTextMatchExpression matchExpression = new FullTextMatchExpression(tsVectorExpression, tsQueryExpression);
     
-        selectBuilder.WhereBooleanExpression(matchExpression);
+        _selectBuilder.WhereBooleanExpression(matchExpression);
         return this;
     }
 
@@ -369,7 +368,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         FullTextExpression tsQueryExpression = FullTextExpression.PlainToTsQuery(language, searchQuery);
         FullTextExpression rankExpression = FullTextExpression.TsRank(tsVectorExpression, tsQueryExpression);
         
-        selectBuilder.OrderByExpression(rankExpression, SortDirection.Descending);
+        _selectBuilder.OrderByExpression(rankExpression, SortDirection.Descending);
         return this;
     }
 
@@ -382,7 +381,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             new VectorLiteralExpression(vector)
         );
         
-        selectBuilder.WhereExpression(vectorExpression, "<", threshold);
+        _selectBuilder.WhereExpression(vectorExpression, "<", threshold);
         return this;
     }
 
@@ -395,19 +394,19 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             new VectorLiteralExpression(vector)
         );
         
-        selectBuilder.OrderByExpression(vectorExpression, SortDirection.Ascending);
+        _selectBuilder.OrderByExpression(vectorExpression, SortDirection.Ascending);
         return this;
     }
 
     public ISmartQuery<TModel> With(string cteName, IQueryBuilder cteQuery)
     {
-        selectBuilder.With(cteName, cteQuery);
+        _selectBuilder.With(cteName, cteQuery);
         return this;
     }
 
     public ISmartQuery<TModel> WithRecursive(string cteName, IQueryBuilder cteQuery)
     {
-        selectBuilder.WithRecursive(cteName, cteQuery);
+        _selectBuilder.WithRecursive(cteName, cteQuery);
         return this;
     }
 
@@ -416,11 +415,11 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         string columnName = GetColumnNameFromExpression(selector);
         SelectBuilder aggregateBuilder = new SelectBuilder()
             .Select(new FunctionExpression("MAX", new ColumnExpression(columnName)))
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         return await executor.QuerySingleAsync<TResult>(aggregateBuilder.Build());
     }
 
@@ -429,11 +428,11 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         string columnName = GetColumnNameFromExpression(selector);
         SelectBuilder aggregateBuilder = new SelectBuilder()
             .Select(new FunctionExpression("MIN", new ColumnExpression(columnName)))
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         return await executor.QuerySingleAsync<TResult>(aggregateBuilder.Build());
     }
 
@@ -444,11 +443,11 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             .Select(new FunctionExpression("COALESCE", 
                 new FunctionExpression("SUM", new ColumnExpression(columnName)), 
                 new LiteralExpression(0)))
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         return await executor.QuerySingleAsync<decimal>(aggregateBuilder.Build());
     }
 
@@ -457,11 +456,11 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         string columnName = GetColumnNameFromExpression(selector);
         SelectBuilder aggregateBuilder = new SelectBuilder()
             .Select(new FunctionExpression("AVG", new ColumnExpression(columnName)))
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         return await executor.QuerySingleAsync<double>(aggregateBuilder.Build());
     }
 
@@ -469,8 +468,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         ApplyLimitOffset();
         
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(selectBuilder.Build());
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
         
         Func<TModel, TResult> compiledSelector = selector.Compile();
         return results.Select(compiledSelector).ToList();
@@ -490,23 +489,17 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         MemberExpression? memberExpression = expression.Body as MemberExpression;
         if (memberExpression == null && expression.Body is UnaryExpression unaryExpression)
-        {
             memberExpression = unaryExpression.Operand as MemberExpression;
-        }
 
         if (memberExpression == null)
-        {
             throw new ArgumentException("Expression must be a member expression");
-        }
 
         string propertyName = memberExpression.Member.Name;
-        IPropertyMetadata? propertyMetadata = modelMetadata.Properties.Values
+        IPropertyMetadata? propertyMetadata = _modelMetadata.Properties.Values
             .FirstOrDefault(property => property.PropertyName == propertyName);
 
         if (propertyMetadata == null)
-        {
             throw new ArgumentException($"Property {propertyName} not found in model metadata");
-        }
 
         return propertyMetadata.ColumnName;
     }
@@ -515,36 +508,28 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         MemberExpression? memberExpression = expression.Body as MemberExpression;
         if (memberExpression == null && expression.Body is UnaryExpression unaryExpression)
-        {
             memberExpression = unaryExpression.Operand as MemberExpression;
-        }
 
         if (memberExpression == null)
-        {
             throw new ArgumentException("Expression must be a member expression");
-        }
 
         string propertyName = memberExpression.Member.Name;
-        IPropertyMetadata? propertyMetadata = modelMetadata.Properties.Values
+        IPropertyMetadata? propertyMetadata = _modelMetadata.Properties.Values
             .FirstOrDefault(property => property.PropertyName == propertyName);
 
         if (propertyMetadata == null)
-        {
             throw new ArgumentException($"Property {propertyName} not found in model metadata");
-        }
 
         return propertyMetadata.ColumnName;
     }
 
     private string GetColumnNameFromPropertyName(string propertyName)
     {
-        IPropertyMetadata? propertyMetadata = modelMetadata.Properties.Values
+        IPropertyMetadata? propertyMetadata = _modelMetadata.Properties.Values
             .FirstOrDefault(property => property.PropertyName == propertyName);
 
         if (propertyMetadata != null)
-        {
             return propertyMetadata.ColumnName;
-        }
 
         return ConvertPropertyNameToColumnName(propertyName);
     }
@@ -558,27 +543,31 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
     private void ApplyLimitOffset()
     {
-        if (takeCount.HasValue)
-        {
-            selectBuilder.Limit(takeCount.Value, skipCount);
-        }
+        if (_takeCount.HasValue)
+            _selectBuilder.Limit(_takeCount.Value, _skipCount);
     }
 
     private async Task LoadRelationshipsAsync(List<TModel> models)
     {
         if (models.Count == 0) return;
 
-        foreach (Expression<Func<TModel, object>> includeExpression in includeExpressions)
-        {
-            await relationshipLoader.LoadRelationshipAsync(models, includeExpression);
-        }
+        foreach (Expression<Func<TModel, object>> includeExpression in _includeExpressions)
+            await _relationshipLoader.LoadRelationshipAsync(models, includeExpression);
+    }
+    
+    private async Task LoadNestedRelationshipsAsync(List<TModel> models)
+    {
+        if (models.Count == 0) return;
+
+        foreach (string path in _includePaths)
+            await _relationshipLoader.LoadRelationshipAsync(models, path);
     }
 
     private void ApplySoftDeleteFilter(SelectBuilder builder)
     {
-        if (modelMetadata.HasSoftDelete && !includeSoftDeleted && !onlySoftDeleted && modelMetadata.DeletedAtPropertyName != null)
+        if (_modelMetadata.HasSoftDelete && !_includeSoftDeleted && !_onlySoftDeleted && _modelMetadata.DeletedAtPropertyName != null)
         {
-            string deletedAtColumnName = GetColumnNameFromPropertyName(modelMetadata.DeletedAtPropertyName);
+            string deletedAtColumnName = GetColumnNameFromPropertyName(_modelMetadata.DeletedAtPropertyName);
             builder.WhereNull(deletedAtColumnName);
         }
     }
@@ -605,7 +594,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             new LiteralExpression(jsonString)
         );
     
-        selectBuilder.WhereBooleanExpression(jsonbExpression);
+        _selectBuilder.WhereBooleanExpression(jsonbExpression);
         return this;
     }
 
@@ -618,7 +607,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             new LiteralExpression($"$.{jsonPath}")
         );
     
-        selectBuilder.WhereBooleanExpression(jsonbExpression);
+        _selectBuilder.WhereBooleanExpression(jsonbExpression);
         return this;
     }
 
@@ -631,7 +620,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             new LiteralExpression(key)
         );
     
-        selectBuilder.WhereBooleanExpression(jsonbExpression);
+        _selectBuilder.WhereBooleanExpression(jsonbExpression);
         return this;
     }
 
@@ -645,7 +634,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             arrayLiteral
         );
     
-        selectBuilder.WhereBooleanExpression(jsonbExpression);
+        _selectBuilder.WhereBooleanExpression(jsonbExpression);
         return this;
     }
 
@@ -659,7 +648,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             arrayLiteral
         );
     
-        selectBuilder.WhereBooleanExpression(jsonbExpression);
+        _selectBuilder.WhereBooleanExpression(jsonbExpression);
         return this;
     }
 
@@ -673,7 +662,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             arrayLiteral
         );
     
-        selectBuilder.WhereBooleanExpression(arrayExpression);
+        _selectBuilder.WhereBooleanExpression(arrayExpression);
         return this;
     }
 
@@ -687,7 +676,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             arrayLiteral
         );
     
-        selectBuilder.WhereBooleanExpression(arrayExpression);
+        _selectBuilder.WhereBooleanExpression(arrayExpression);
         return this;
     }
 
@@ -701,7 +690,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             arrayLiteral
         );
     
-        selectBuilder.WhereBooleanExpression(arrayExpression);
+        _selectBuilder.WhereBooleanExpression(arrayExpression);
         return this;
     }
 }

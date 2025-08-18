@@ -35,7 +35,7 @@ public sealed class SqlBuilderAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor InvalidOperatorRule = new DiagnosticDescriptor(
         InvalidOperatorDiagnosticId,
         "Invalid SQL operator",
-        "'{0}' is not a valid SQL operator. Use operators like '=', '!=', '>', '<', 'LIKE', 'IN', etc.",
+        "'{0}' is not a valid SQL operator. Use operators like '=', '!=', '>', '<', 'LIKE', 'IN', '= ANY', etc.",
         "Usage",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -52,7 +52,7 @@ public sealed class SqlBuilderAnalyzer : DiagnosticAnalyzer
 
     private static readonly ImmutableArray<string> ValidOperators = ImmutableArray.Create(
         "=", "!=", "<>", ">", ">=", "<", "<=", "LIKE", "ILIKE", "NOT LIKE", "IN", "NOT IN", 
-        "IS", "IS NOT", "EXISTS", "NOT EXISTS", "BETWEEN", "NOT BETWEEN"
+        "IS", "IS NOT", "EXISTS", "NOT EXISTS", "BETWEEN", "NOT BETWEEN", "= ANY"
     );
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => 

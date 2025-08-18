@@ -12,26 +12,26 @@ namespace Rymote.Radiant.Smart.Repository;
 
 public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TModel : class, new()
 {
-    private readonly IDbConnection databaseConnection;
-    private readonly IModelMetadata modelMetadata;
+    private readonly IDbConnection _databaseConnection;
+    private readonly IModelMetadata _modelMetadata;
 
     public SmartRepository(IDbConnection databaseConnection, IModelMetadata modelMetadata)
     {
-        this.databaseConnection = databaseConnection;
-        this.modelMetadata = modelMetadata;
+        _databaseConnection = databaseConnection;
+        _modelMetadata = modelMetadata;
     }
 
     public async Task<TModel> InsertAsync(TModel model)
     {
         InsertBuilder insertBuilder = new InsertBuilder()
-            .Into(modelMetadata.TableName, modelMetadata.SchemaName);
+            .Into(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         List<string> returningColumns = new List<string>();
 
         bool createdAtWasSet = false;
         bool updatedAtWasSet = false;
 
-        foreach (IPropertyMetadata property in modelMetadata.Properties.Values)
+        foreach (IPropertyMetadata property in _modelMetadata.Properties.Values)
         {
             if (property.IsPrimaryKey && property.IsAutoIncrement)
             {
@@ -41,11 +41,12 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
 
             object? value = property.PropertyInfo.GetValue(model);
 
-            if (modelMetadata.HasTimestamps)
+            if (_modelMetadata.HasTimestamps)
             {
-                if (property.PropertyName == modelMetadata.CreatedAtPropertyName && value != null)
+                if (property.PropertyName == _modelMetadata.CreatedAtPropertyName && value != null)
                     createdAtWasSet = true;
-                if (property.PropertyName == modelMetadata.UpdatedAtPropertyName && value != null)
+                
+                if (property.PropertyName == _modelMetadata.UpdatedAtPropertyName && value != null)
                     updatedAtWasSet = true;
             }
 
@@ -60,37 +61,37 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             }
         }
 
-        if (modelMetadata.HasTimestamps)
+        if (_modelMetadata.HasTimestamps)
         {
             DateTime now = DateTime.UtcNow;
 
-            if (modelMetadata.CreatedAtPropertyName != null && !createdAtWasSet)
+            if (_modelMetadata.CreatedAtPropertyName != null && !createdAtWasSet)
             {
-                insertBuilder.Value(ConvertPropertyNameToColumnName(modelMetadata.CreatedAtPropertyName), now);
-                SetPropertyValue(model, modelMetadata.CreatedAtPropertyName, now);
+                insertBuilder.Value(ConvertPropertyNameToColumnName(_modelMetadata.CreatedAtPropertyName), now);
+                SetPropertyValue(model, _modelMetadata.CreatedAtPropertyName, now);
             }
 
-            if (modelMetadata.UpdatedAtPropertyName != null && !updatedAtWasSet)
+            if (_modelMetadata.UpdatedAtPropertyName != null && !updatedAtWasSet)
             {
-                insertBuilder.Value(ConvertPropertyNameToColumnName(modelMetadata.UpdatedAtPropertyName), now);
-                SetPropertyValue(model, modelMetadata.UpdatedAtPropertyName, now);
+                insertBuilder.Value(ConvertPropertyNameToColumnName(_modelMetadata.UpdatedAtPropertyName), now);
+                SetPropertyValue(model, _modelMetadata.UpdatedAtPropertyName, now);
             }
         }
 
         if (returningColumns.Count > 0)
             insertBuilder.Returning(returningColumns.ToArray());
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
 
         if (returningColumns.Count > 0)
         {
             dynamic result = await executor.QuerySingleAsync<dynamic>(insertBuilder.Build());
 
-            if (modelMetadata.PrimaryKey != null && modelMetadata.PrimaryKey.IsAutoIncrement)
+            if (_modelMetadata.PrimaryKey != null && _modelMetadata.PrimaryKey.IsAutoIncrement)
             {
-                object primaryKeyValue = ((IDictionary<string, object>)result)[modelMetadata.PrimaryKey.ColumnName];
-                modelMetadata.PrimaryKey.PropertyInfo.SetValue(model,
-                    Convert.ChangeType(primaryKeyValue, modelMetadata.PrimaryKey.PropertyType));
+                object primaryKeyValue = ((IDictionary<string, object>)result)[_modelMetadata.PrimaryKey.ColumnName];
+                _modelMetadata.PrimaryKey.PropertyInfo.SetValue(model,
+                    Convert.ChangeType(primaryKeyValue, _modelMetadata.PrimaryKey.PropertyType));
             }
         }
         else
@@ -103,21 +104,21 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
 
     public async Task<TModel> UpdateAsync(TModel model)
     {
-        if (modelMetadata.PrimaryKey == null)
+        if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
 
         UpdateBuilder updateBuilder = new UpdateBuilder()
-            .Table(modelMetadata.TableName, modelMetadata.SchemaName);
+            .Table(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         bool updatedAtWasSet = false;
 
-        foreach (IPropertyMetadata property in modelMetadata.Properties.Values)
+        foreach (IPropertyMetadata property in _modelMetadata.Properties.Values)
         {
             if (property.IsPrimaryKey)
                 continue;
 
-            if (modelMetadata.HasTimestamps &&
-                property.PropertyName == modelMetadata.UpdatedAtPropertyName)
+            if (_modelMetadata.HasTimestamps &&
+                property.PropertyName == _modelMetadata.UpdatedAtPropertyName)
             {
                 object? value = property.PropertyInfo.GetValue(model);
                 if (value != null)
@@ -153,19 +154,19 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             }
         }
 
-        if (modelMetadata.HasTimestamps &&
-            modelMetadata.UpdatedAtPropertyName != null &&
+        if (_modelMetadata.HasTimestamps &&
+            _modelMetadata.UpdatedAtPropertyName != null &&
             !updatedAtWasSet)
         {
             DateTime now = DateTime.UtcNow;
-            updateBuilder.Set(ConvertPropertyNameToColumnName(modelMetadata.UpdatedAtPropertyName), now);
-            SetPropertyValue(model, modelMetadata.UpdatedAtPropertyName, now);
+            updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.UpdatedAtPropertyName), now);
+            SetPropertyValue(model, _modelMetadata.UpdatedAtPropertyName, now);
         }
 
-        object? primaryKeyValue = modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        updateBuilder.Where(modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         await executor.ExecuteAsync(updateBuilder.Build());
 
         return model;
@@ -173,18 +174,16 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
 
     public async Task<bool> DeleteAsync(TModel model)
     {
-        if (modelMetadata.PrimaryKey == null)
-        {
+        if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
-        }
 
         DeleteBuilder deleteBuilder = new DeleteBuilder()
-            .From(modelMetadata.TableName, modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
-        object? primaryKeyValue = modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        deleteBuilder.Where(modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+        deleteBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         int affectedRows = await executor.ExecuteAsync(deleteBuilder.Build());
 
         return affectedRows > 0;
@@ -192,76 +191,62 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
 
     public async Task<bool> SoftDeleteAsync(TModel model)
     {
-        if (!modelMetadata.HasSoftDelete || modelMetadata.DeletedAtPropertyName == null)
-        {
+        if (!_modelMetadata.HasSoftDelete || _modelMetadata.DeletedAtPropertyName == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
-        }
 
-        if (modelMetadata.PrimaryKey == null)
-        {
+        if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
-        }
 
         UpdateBuilder updateBuilder = new UpdateBuilder()
-            .Table(modelMetadata.TableName, modelMetadata.SchemaName);
+            .Table(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         DateTime now = DateTime.UtcNow;
-        updateBuilder.Set(ConvertPropertyNameToColumnName(modelMetadata.DeletedAtPropertyName), now);
+        updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.DeletedAtPropertyName), now);
 
-        object? primaryKeyValue = modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        updateBuilder.Where(modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         int affectedRows = await executor.ExecuteAsync(updateBuilder.Build());
 
         if (affectedRows > 0)
-        {
-            SetPropertyValue(model, modelMetadata.DeletedAtPropertyName, now);
-        }
+            SetPropertyValue(model, _modelMetadata.DeletedAtPropertyName, now);
 
         return affectedRows > 0;
     }
 
     public async Task<bool> RestoreAsync(TModel model)
     {
-        if (!modelMetadata.HasSoftDelete || modelMetadata.DeletedAtPropertyName == null)
-        {
+        if (!_modelMetadata.HasSoftDelete || _modelMetadata.DeletedAtPropertyName == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
-        }
 
-        if (modelMetadata.PrimaryKey == null)
-        {
+        if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
-        }
 
         UpdateBuilder updateBuilder = new UpdateBuilder()
-            .Table(modelMetadata.TableName, modelMetadata.SchemaName);
+            .Table(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
-        updateBuilder.Set(ConvertPropertyNameToColumnName(modelMetadata.DeletedAtPropertyName), null);
+        updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.DeletedAtPropertyName), null);
 
-        object? primaryKeyValue = modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        updateBuilder.Where(modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         int affectedRows = await executor.ExecuteAsync(updateBuilder.Build());
 
         if (affectedRows > 0)
-        {
-            SetPropertyValue(model, modelMetadata.DeletedAtPropertyName, null);
-        }
+            SetPropertyValue(model, _modelMetadata.DeletedAtPropertyName, null);
 
         return affectedRows > 0;
     }
 
     private void SetPropertyValue(TModel model, string propertyName, object? value)
     {
-        IPropertyMetadata? property = modelMetadata.Properties.Values
+        IPropertyMetadata? property = _modelMetadata.Properties.Values
             .FirstOrDefault(prop => prop.PropertyName == propertyName);
 
         if (property != null)
-        {
             property.PropertyInfo.SetValue(model, value);
-        }
     }
 
     private string ConvertPropertyNameToColumnName(string propertyName)

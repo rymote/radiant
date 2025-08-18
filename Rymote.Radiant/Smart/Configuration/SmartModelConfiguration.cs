@@ -6,45 +6,43 @@ namespace Rymote.Radiant.Smart.Configuration;
 
 public sealed class SmartModelConfiguration : ISmartModelConfiguration
 {
-    private IDbConnection? databaseConnection;
-    private readonly IModelMetadataCache modelMetadataCache;
+    private IDbConnection? _databaseConnection;
+    private readonly IModelMetadataCache _modelMetadataCache;
 
     public SmartModelConfiguration()
     {
         IModelMetadataScanner scanner = new ModelMetadataScanner();
-        this.modelMetadataCache = new ModelMetadataCache(scanner);
+        _modelMetadataCache = new ModelMetadataCache(scanner);
     }
 
     public ISmartModelConfiguration UseConnection(IDbConnection connection)
     {
-        this.databaseConnection = connection;
+        _databaseConnection = connection;
         return this;
     }
 
     public ISmartModelConfiguration RegisterModel<TModel>() where TModel : class
     {
-        modelMetadataCache.RegisterModel<TModel>();
+        _modelMetadataCache.RegisterModel<TModel>();
         return this;
     }
 
     public ISmartModelConfiguration RegisterModel(Type modelType)
     {
-        modelMetadataCache.RegisterModel(modelType);
+        _modelMetadataCache.RegisterModel(modelType);
         return this;
     }
 
     public void Build()
     {
-        if (databaseConnection == null)
-        {
+        if (_databaseConnection == null)
             throw new InvalidOperationException("Database connection must be configured");
-        }
 
-        SmartModel.Configure(databaseConnection, modelMetadataCache);
+        SmartModel.Configure(_databaseConnection, _modelMetadataCache);
     }
     
     public IModelMetadataCache GetModelMetadataCache()
     {
-        return modelMetadataCache;
+        return _modelMetadataCache;
     }
 }

@@ -16,35 +16,43 @@ public sealed class WhereCondition : IWhereExpression
         OperatorSymbol = operatorSymbol;
         Value = value;
     }
-    
+
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
         stringBuilder
             .Append(SqlKeywords.QUOTE).Append(ColumnName).Append(SqlKeywords.QUOTE)
             .Append(SqlKeywords.SPACE).Append(OperatorSymbol).Append(SqlKeywords.SPACE);
 
-        if ((OperatorSymbol.Equals("IS", StringComparison.OrdinalIgnoreCase) || 
-             OperatorSymbol.Equals("IS NOT", StringComparison.OrdinalIgnoreCase)) && 
+        if ((OperatorSymbol.Equals("IS", StringComparison.OrdinalIgnoreCase) ||
+             OperatorSymbol.Equals("IS NOT", StringComparison.OrdinalIgnoreCase)) &&
             Value == null)
         {
             stringBuilder.Append(SqlKeywords.NULL);
         }
-        else if ((OperatorSymbol.Equals("IN", StringComparison.OrdinalIgnoreCase) || 
-                  OperatorSymbol.Equals("NOT IN", StringComparison.OrdinalIgnoreCase)) && 
+        else if (OperatorSymbol.Equals("= ANY", StringComparison.OrdinalIgnoreCase) && Value is Array)
+        {
+            string parameterName = parameterBag.Add(Value);
+            stringBuilder
+                .Append(SqlKeywords.OPEN_PAREN)
+                .Append(SqlKeywords.PARAMETER_PREFIX).Append(parameterName)
+                .Append(SqlKeywords.CLOSE_PAREN);
+        }
+        else if ((OperatorSymbol.Equals("IN", StringComparison.OrdinalIgnoreCase) ||
+                  OperatorSymbol.Equals("NOT IN", StringComparison.OrdinalIgnoreCase)) &&
                  Value is Array array)
         {
             stringBuilder.Append(SqlKeywords.OPEN_PAREN);
-            
+
             for (int index = 0; index < array.Length; index++)
             {
                 if (index > 0)
                     stringBuilder.Append(SqlKeywords.COMMA);
-                
+
                 object? element = array.GetValue(index);
                 string parameterName = parameterBag.Add(element);
                 stringBuilder.Append(SqlKeywords.PARAMETER_PREFIX).Append(parameterName);
             }
-            
+
             stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
         }
         else

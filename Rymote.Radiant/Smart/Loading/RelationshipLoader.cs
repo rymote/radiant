@@ -15,15 +15,15 @@ namespace Rymote.Radiant.Smart.Loading;
 
 public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TModel : class, new()
 {
-    private readonly IModelMetadata modelMetadata;
-    private readonly IDbConnection databaseConnection;
-    private readonly IModelMetadataCache metadataCache;
+    private readonly IModelMetadata _modelMetadata;
+    private readonly IDbConnection _databaseConnection;
+    private readonly IModelMetadataCache _metadataCache;
 
     public RelationshipLoader(IModelMetadata modelMetadata, IDbConnection databaseConnection, IModelMetadataCache metadataCache)
     {
-        this.modelMetadata = modelMetadata;
-        this.databaseConnection = databaseConnection;
-        this.metadataCache = metadataCache;
+        _modelMetadata = modelMetadata;
+        _databaseConnection = databaseConnection;
+        _metadataCache = metadataCache;
     }
 
     public async Task LoadRelationshipAsync<TEntity>(List<TEntity> models, Expression<Func<TEntity, object>> navigationProperty) 
@@ -41,7 +41,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
         if (models.Count == 0) return;
 
         string propertyName = GetPropertyName(navigationProperty);
-        IRelationshipMetadata? relationship = modelMetadata.Relationships
+        IRelationshipMetadata? relationship = _modelMetadata.Relationships
             .FirstOrDefault(relationshipMetadata => relationshipMetadata.PropertyInfo.Name == propertyName);
 
         if (relationship == null)
@@ -52,14 +52,97 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
             case RelationshipType.HasOne:
                 await LoadHasOneRelationshipAsync(models, relationship);
                 break;
+            
             case RelationshipType.HasMany:
                 await LoadHasManyRelationshipAsync(models, relationship);
                 break;
+            
             case RelationshipType.BelongsTo:
                 await LoadBelongsToRelationshipAsync(models, relationship);
                 break;
         }
     }
+    
+    public async Task LoadRelationshipAsync<TEntity>(List<TEntity> models, string navigationPath) 
+        where TEntity : class, new()
+    {
+        if (typeof(TEntity) != typeof(TModel))
+            throw new InvalidOperationException($"RelationshipLoader for {typeof(TModel).Name} cannot load relationships for {typeof(TEntity).Name}");
+
+        List<TModel> typedModels = models.Cast<TModel>().ToList();
+        if (typedModels.Count == 0) return;
+
+        if (string.IsNullOrWhiteSpace(navigationPath))
+            throw new ArgumentException("navigationPath cannot be null or empty", nameof(navigationPath));
+
+        string[] segments = navigationPath.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length == 0) return;
+
+        await LoadRelationshipPathInternalAsync(typedModels, segments, 0);
+    }
+    
+    private async Task LoadRelationshipPathInternalAsync(List<TModel> models, string[] segments, int index)
+	{
+		if (index >= segments.Length || models.Count == 0) return;
+
+		string propertyName = segments[index];
+		IRelationshipMetadata? relationship = _modelMetadata.Relationships
+			.FirstOrDefault(r => r.PropertyInfo.Name == propertyName);
+
+		if (relationship == null)
+			throw new InvalidOperationException($"Property {propertyName} is not a defined relationship on {typeof(TModel).Name}");
+
+		switch (relationship.RelationshipType)
+		{
+			case RelationshipType.HasOne:
+				await LoadHasOneRelationshipAsync(models, relationship);
+				break;
+            
+			case RelationshipType.HasMany:
+				await LoadHasManyRelationshipAsync(models, relationship);
+				break;
+            
+			case RelationshipType.BelongsTo:
+				await LoadBelongsToRelationshipAsync(models, relationship);
+				break;
+		}
+
+		if (index + 1 >= segments.Length) return;
+
+		Type childType = relationship.RelatedModelType;
+		IModelMetadata childMetadata = _metadataCache.GetMetadata(childType);
+
+		List<object> childObjects = new List<object>();
+
+		if (relationship.RelationshipType == RelationshipType.HasMany)
+        {
+            foreach (object? value in models.Select(model => relationship.PropertyInfo.GetValue(model)))
+            {
+                if (value is not IEnumerable enumerable) continue;
+                childObjects.AddRange(enumerable.OfType<object>());
+            }
+        }
+		else
+        {
+            childObjects.AddRange(models.Select(model => relationship.PropertyInfo.GetValue(model)).OfType<object>());
+        }
+
+		if (childObjects.Count == 0) return;
+
+		Type loaderType = typeof(RelationshipLoader<>).MakeGenericType(childType);
+		object loaderInstance = Activator.CreateInstance(loaderType, childMetadata, _databaseConnection, _metadataCache)!;
+
+		MethodInfo continueMethod = loaderType
+			.GetMethod("LoadRelationshipPathInternalFromObjectsAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+		await (Task)continueMethod.Invoke(loaderInstance, new object[] { childObjects, segments, index + 1 })!;
+	}
+
+	private async Task LoadRelationshipPathInternalFromObjectsAsync(List<object> objects, string[] segments, int index)
+	{
+		List<TModel> typed = objects.Cast<TModel>().ToList();
+		await LoadRelationshipPathInternalAsync(typed, segments, index);
+	}
 
     private ISqlExpression[] GetSelectExpressions(IModelMetadata metadata)
     {
@@ -76,18 +159,18 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
     private async Task LoadHasOneRelationshipAsync(List<TModel> models, IRelationshipMetadata relationship)
     {
-        IModelMetadata relatedMetadata = metadataCache.GetMetadata(relationship.RelatedModelType);
+        IModelMetadata relatedMetadata = _metadataCache.GetMetadata(relationship.RelatedModelType);
         IPropertyMetadata? foreignKeyProperty = relatedMetadata.Properties.Values
             .FirstOrDefault(property => property.PropertyName == relationship.ForeignKeyPropertyName);
 
         if (foreignKeyProperty == null)
             throw new InvalidOperationException($"Foreign key property {relationship.ForeignKeyPropertyName} not found on {relationship.RelatedModelType.Name}");
 
-        if (modelMetadata.PrimaryKey == null)
+        if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} must have a primary key for HasOne relationships");
 
         List<object> primaryKeyValues = models
-            .Select(model => modelMetadata.PrimaryKey.PropertyInfo.GetValue(model))
+            .Select(model => _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model))
             .Where(value => value != null)
             .Distinct()
             .ToList();
@@ -97,7 +180,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(GetSelectExpressions(relatedMetadata))
             .From(relatedMetadata.TableName, relatedMetadata.SchemaName)
-            .Where(foreignKeyProperty.ColumnName, "IN", primaryKeyValues.ToArray());
+            .Where(foreignKeyProperty.ColumnName, "= ANY", primaryKeyValues.ToArray());
 
         if (relatedMetadata.HasSoftDelete && relatedMetadata.DeletedAtPropertyName != null)
         {
@@ -105,7 +188,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
             selectBuilder.WhereNull(deletedAtColumnName);
         }
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         
         MethodInfo loadMethod = GetType()
             .GetMethod(nameof(ExecuteRelatedQuery), BindingFlags.NonPublic | BindingFlags.Instance)!
@@ -118,7 +201,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         foreach (TModel model in models)
         {
-            object? primaryKeyValue = modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+            object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
             if (primaryKeyValue != null && relatedModelsByForeignKey.TryGetValue(primaryKeyValue, out object? relatedModel))
                 relationship.PropertyInfo.SetValue(model, relatedModel);
         }
@@ -126,18 +209,18 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
     private async Task LoadHasManyRelationshipAsync(List<TModel> models, IRelationshipMetadata relationship)
     {
-        IModelMetadata relatedMetadata = metadataCache.GetMetadata(relationship.RelatedModelType);
+        IModelMetadata relatedMetadata = _metadataCache.GetMetadata(relationship.RelatedModelType);
         IPropertyMetadata? foreignKeyProperty = relatedMetadata.Properties.Values
             .FirstOrDefault(property => property.PropertyName == relationship.ForeignKeyPropertyName);
 
         if (foreignKeyProperty == null)
             throw new InvalidOperationException($"Foreign key property {relationship.ForeignKeyPropertyName} not found on {relationship.RelatedModelType.Name}");
 
-        if (modelMetadata.PrimaryKey == null)
+        if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} must have a primary key for HasMany relationships");
 
         List<object> primaryKeyValues = models
-            .Select(model => modelMetadata.PrimaryKey.PropertyInfo.GetValue(model))
+            .Select(model => _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model))
             .Where(value => value != null)
             .Distinct()
             .ToList();
@@ -147,7 +230,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(GetSelectExpressions(relatedMetadata))
             .From(relatedMetadata.TableName, relatedMetadata.SchemaName)
-            .Where(foreignKeyProperty.ColumnName, "IN", primaryKeyValues.ToArray());
+            .Where(foreignKeyProperty.ColumnName, "= ANY", primaryKeyValues.ToArray());
 
         if (relatedMetadata.HasSoftDelete && relatedMetadata.DeletedAtPropertyName != null)
         {
@@ -155,7 +238,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
             selectBuilder.WhereNull(deletedAtColumnName);
         }
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
 
         MethodInfo loadMethod = GetType()
             .GetMethod(nameof(ExecuteRelatedQuery), BindingFlags.NonPublic | BindingFlags.Instance)!
@@ -171,7 +254,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
             
             if (foreignKeyValue != null)
             {
-                object normalizedKey = Convert.ChangeType(foreignKeyValue, modelMetadata.PrimaryKey.PropertyType);
+                object normalizedKey = Convert.ChangeType(foreignKeyValue, _modelMetadata.PrimaryKey.PropertyType);
         
                 if (!relatedModelsByForeignKey.ContainsKey(normalizedKey))
                     relatedModelsByForeignKey[normalizedKey] = new List<object>();
@@ -184,7 +267,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         foreach (TModel model in models)
         {
-            object? primaryKeyValue = modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+            object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
             
             if (primaryKeyValue != null && relatedModelsByForeignKey.TryGetValue(primaryKeyValue, out List<object>? relatedList))
             {
@@ -211,13 +294,13 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
     
     private async Task LoadBelongsToRelationshipAsync(List<TModel> models, IRelationshipMetadata relationship)
     {
-        IPropertyMetadata? localForeignKeyProperty = modelMetadata.Properties.Values
+        IPropertyMetadata? localForeignKeyProperty = _modelMetadata.Properties.Values
             .FirstOrDefault(property => property.PropertyName == relationship.ForeignKeyPropertyName);
 
         if (localForeignKeyProperty == null)
             throw new InvalidOperationException($"Foreign key property {relationship.ForeignKeyPropertyName} not found on {typeof(TModel).Name}");
 
-        IModelMetadata relatedMetadata = metadataCache.GetMetadata(relationship.RelatedModelType);
+        IModelMetadata relatedMetadata = _metadataCache.GetMetadata(relationship.RelatedModelType);
         
         if (relatedMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Related model {relationship.RelatedModelType.Name} must have a primary key for BelongsTo relationships");
@@ -233,7 +316,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(GetSelectExpressions(relatedMetadata))
             .From(relatedMetadata.TableName, relatedMetadata.SchemaName)
-            .Where(relatedMetadata.PrimaryKey.ColumnName, "IN", foreignKeyValues.ToArray());
+            .Where(relatedMetadata.PrimaryKey.ColumnName, "= ANY", foreignKeyValues.ToArray());
 
         if (relatedMetadata.HasSoftDelete && relatedMetadata.DeletedAtPropertyName != null)
         {
@@ -241,7 +324,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
             selectBuilder.WhereNull(deletedAtColumnName);
         }
 
-        QueryExecutor executor = new QueryExecutor(databaseConnection);
+        QueryExecutor executor = new QueryExecutor(_databaseConnection);
         
         MethodInfo loadMethod = GetType()
             .GetMethod(nameof(ExecuteRelatedQuery), BindingFlags.NonPublic | BindingFlags.Instance)!
