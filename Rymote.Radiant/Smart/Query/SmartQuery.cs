@@ -26,7 +26,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     private bool _onlySoftDeleted;
     private int? _skipCount;
     private int? _takeCount;
-    private readonly IRelationshipLoader _relationshipLoader;
+    private readonly RelationshipLoader<TModel> _relationshipLoader;
+    private string? _schemaOverride;
 
     public SmartQuery(IDbConnection databaseConnection, IModelMetadata modelMetadata)
     {
@@ -40,6 +41,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         _takeCount = null;
         IModelMetadataCache metadataCache = SmartModel.GetMetadataCache();
         _relationshipLoader = new RelationshipLoader<TModel>(modelMetadata, databaseConnection, metadataCache);
+        _schemaOverride = null;
 
         InitializeSelectBuilder();
     }
@@ -51,13 +53,26 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             .ToList();
 
         _selectBuilder.Select(columnExpressions.ToArray())
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _schemaOverride ?? _modelMetadata.SchemaName);
 
         if (_modelMetadata.HasSoftDelete && !_includeSoftDeleted && _modelMetadata.DeletedAtPropertyName != null)
         {
             string deletedAtColumnName = GetColumnNameFromPropertyName(_modelMetadata.DeletedAtPropertyName);
             _selectBuilder.WhereNull(deletedAtColumnName);
         }
+    }
+
+    public ISmartQuery<TModel> Schema(string schemaName)
+    {
+        if (string.IsNullOrWhiteSpace(schemaName))
+            throw new ArgumentException("schemaName cannot be null or empty", nameof(schemaName));
+
+        _schemaOverride = schemaName;
+        _relationshipLoader.SchemaOverride = schemaName;
+
+        // Update the FROM clause to use the new schema. Safe to call multiple times.
+        _selectBuilder.From(_modelMetadata.TableName, _schemaOverride);
+        return this;
     }
 
     public ISmartQuery<TModel> Where(Expression<Func<TModel, bool>> predicate)
@@ -245,7 +260,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         SelectBuilder countBuilder = new SelectBuilder()
             .Select(new RawSqlExpression("COUNT(*)"))
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _schemaOverride ?? _modelMetadata.SchemaName);
 
         if (_modelMetadata.HasSoftDelete && !_includeSoftDeleted && !_onlySoftDeleted && _modelMetadata.DeletedAtPropertyName != null)
         {
@@ -415,7 +430,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         string columnName = GetColumnNameFromExpression(selector);
         SelectBuilder aggregateBuilder = new SelectBuilder()
             .Select(new FunctionExpression("MAX", new ColumnExpression(columnName)))
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _schemaOverride ?? _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
@@ -428,7 +443,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         string columnName = GetColumnNameFromExpression(selector);
         SelectBuilder aggregateBuilder = new SelectBuilder()
             .Select(new FunctionExpression("MIN", new ColumnExpression(columnName)))
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _schemaOverride ?? _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
@@ -443,7 +458,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             .Select(new FunctionExpression("COALESCE", 
                 new FunctionExpression("SUM", new ColumnExpression(columnName)), 
                 new LiteralExpression(0)))
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _schemaOverride ?? _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
@@ -456,7 +471,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         string columnName = GetColumnNameFromExpression(selector);
         SelectBuilder aggregateBuilder = new SelectBuilder()
             .Select(new FunctionExpression("AVG", new ColumnExpression(columnName)))
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, _schemaOverride ?? _modelMetadata.SchemaName);
 
         ApplySoftDeleteFilter(aggregateBuilder);
 

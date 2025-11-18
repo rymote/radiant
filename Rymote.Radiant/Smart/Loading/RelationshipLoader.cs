@@ -18,12 +18,14 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
     private readonly IModelMetadata _modelMetadata;
     private readonly IDbConnection _databaseConnection;
     private readonly IModelMetadataCache _metadataCache;
+    public string? SchemaOverride { get; set; }
 
     public RelationshipLoader(IModelMetadata modelMetadata, IDbConnection databaseConnection, IModelMetadataCache metadataCache)
     {
         _modelMetadata = modelMetadata;
         _databaseConnection = databaseConnection;
         _metadataCache = metadataCache;
+        SchemaOverride = null;
     }
 
     public async Task LoadRelationshipAsync<TEntity>(List<TEntity> models, Expression<Func<TEntity, object>> navigationProperty) 
@@ -179,7 +181,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(GetSelectExpressions(relatedMetadata))
-            .From(relatedMetadata.TableName, relatedMetadata.SchemaName)
+            .From(relatedMetadata.TableName, SchemaOverride ?? relatedMetadata.SchemaName)
             .Where(foreignKeyProperty.ColumnName, "= ANY", primaryKeyValues.ToArray());
 
         if (relatedMetadata.HasSoftDelete && relatedMetadata.DeletedAtPropertyName != null)
@@ -229,7 +231,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(GetSelectExpressions(relatedMetadata))
-            .From(relatedMetadata.TableName, relatedMetadata.SchemaName)
+            .From(relatedMetadata.TableName, SchemaOverride ?? relatedMetadata.SchemaName)
             .Where(foreignKeyProperty.ColumnName, "= ANY", primaryKeyValues.ToArray());
 
         if (relatedMetadata.HasSoftDelete && relatedMetadata.DeletedAtPropertyName != null)
@@ -315,7 +317,7 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(GetSelectExpressions(relatedMetadata))
-            .From(relatedMetadata.TableName, relatedMetadata.SchemaName)
+            .From(relatedMetadata.TableName, SchemaOverride ?? relatedMetadata.SchemaName)
             .Where(relatedMetadata.PrimaryKey.ColumnName, "= ANY", foreignKeyValues.ToArray());
 
         if (relatedMetadata.HasSoftDelete && relatedMetadata.DeletedAtPropertyName != null)
