@@ -5,19 +5,18 @@ using Microsoft.CodeAnalysis.Text;
 namespace Rymote.Radiant.Generators;
 
 [Generator]
-public sealed class SqlExpressionsGenerator : ISourceGenerator
+public sealed class SqlExpressionsGenerator : IIncrementalGenerator
 {
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        context.RegisterPostInitializationOutput(static postInitializationContext =>
+        {
+            string source = GenerateSqlExpressionHelpers();
+            postInitializationContext.AddSource("SqlExpressionHelpers.g.cs", SourceText.From(source, Encoding.UTF8));
+        });
     }
 
-    public void Execute(GeneratorExecutionContext context)
-    {
-        string source = GenerateSqlExpressionHelpers();
-        context.AddSource("SqlExpressionHelpers.g.cs", SourceText.From(source, Encoding.UTF8));
-    }
-
-    private string GenerateSqlExpressionHelpers()
+    private static string GenerateSqlExpressionHelpers()
     {
         StringBuilder sourceBuilder = new StringBuilder();
 

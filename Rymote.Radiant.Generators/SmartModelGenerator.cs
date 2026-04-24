@@ -1,42 +1,64 @@
-using System;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Rymote.Radiant.Generators;
 
 [Generator]
-public sealed class SmartModelGenerator : ISourceGenerator
+public sealed class SmartModelGenerator : IIncrementalGenerator
 {
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterForSyntaxNotifications(() => new SmartModelSyntaxReceiver());
-    }
+        IncrementalValuesProvider<INamedTypeSymbol> smartModelSymbols = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (syntaxNode, _) => IsCandidateClass(syntaxNode),
+                transform: static (syntaxContext, cancellationToken) => GetSmartModelSymbol(syntaxContext, cancellationToken))
+            .Where(static symbol => symbol is not null)
+            .Select(static (symbol, _) => symbol!);
 
-    public void Execute(GeneratorExecutionContext context)
-    {
-        if (!(context.SyntaxContextReceiver is SmartModelSyntaxReceiver receiver))
-            return;
-
-        foreach (ClassDeclarationSyntax classDeclaration in receiver.SmartModelClasses)
+        context.RegisterSourceOutput(smartModelSymbols, static (sourceProductionContext, classSymbol) =>
         {
-            SemanticModel semanticModel = context.Compilation.GetSemanticModel(classDeclaration.SyntaxTree);
-            INamedTypeSymbol? classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
-            
-            if (classSymbol == null) continue;
-
             string generatedCode = GenerateHelperMethods(classSymbol);
             string fileName = $"{classSymbol.Name}.SmartHelpers.g.cs";
-            
-            context.AddSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
-        }
+            sourceProductionContext.AddSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
+        });
     }
 
-    private string GenerateHelperMethods(INamedTypeSymbol classSymbol)
+    private static bool IsCandidateClass(SyntaxNode syntaxNode)
+    {
+        return syntaxNode is ClassDeclarationSyntax classDeclaration && classDeclaration.BaseList != null;
+    }
+
+    private static INamedTypeSymbol? GetSmartModelSymbol(GeneratorSyntaxContext syntaxContext, CancellationToken cancellationToken)
+    {
+        ClassDeclarationSyntax classDeclaration = (ClassDeclarationSyntax)syntaxContext.Node;
+        INamedTypeSymbol? classSymbol = syntaxContext.SemanticModel.GetDeclaredSymbol(classDeclaration, cancellationToken) as INamedTypeSymbol;
+
+        if (classSymbol == null)
+            return null;
+
+        return InheritsFromSmartModel(classSymbol) ? classSymbol : null;
+    }
+
+    private static bool InheritsFromSmartModel(INamedTypeSymbol typeSymbol)
+    {
+        INamedTypeSymbol? baseType = typeSymbol.BaseType;
+        while (baseType != null)
+        {
+            if (baseType.Name == "SmartModel" && baseType.ContainingNamespace.ToDisplayString().Contains("Rymote.Radiant.Smart"))
+                return true;
+
+            baseType = baseType.BaseType;
+        }
+
+        return false;
+    }
+
+    private static string GenerateHelperMethods(INamedTypeSymbol classSymbol)
     {
         StringBuilder sourceBuilder = new StringBuilder();
         string namespaceName = classSymbol.ContainingNamespace.ToDisplayString();
@@ -48,22 +70,20 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine($"public static class {className}SmartQueryExtensions");
         sourceBuilder.AppendLine("{");
 
-        IPropertySymbol[] properties = classSymbol.GetMembers()
+        ImmutableArray<IPropertySymbol> properties = classSymbol.GetMembers()
             .OfType<IPropertySymbol>()
             .Where(property => property.DeclaredAccessibility == Accessibility.Public)
             .Where(property => !IsRelationshipProperty(property))
-            .ToArray();
+            .ToImmutableArray();
 
         foreach (IPropertySymbol property in properties)
-        {
             GeneratePropertyHelperMethods(sourceBuilder, className, property);
-        }
 
         sourceBuilder.AppendLine("}");
         return sourceBuilder.ToString();
     }
 
-    private void GeneratePropertyHelperMethods(StringBuilder sourceBuilder, string className, IPropertySymbol property)
+    private static void GeneratePropertyHelperMethods(StringBuilder sourceBuilder, string className, IPropertySymbol property)
     {
         string propertyName = property.Name;
         string columnName = GetColumnName(property);
@@ -86,29 +106,19 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine();
 
         if (IsNumericType(propertyType))
-        {
             GenerateNumericHelperMethods(sourceBuilder, className, propertyName, columnName, propertyType);
-        }
         else if (IsDateTimeType(propertyType))
-        {
             GenerateDateTimeHelperMethods(sourceBuilder, className, propertyName, columnName, propertyType);
-        }
         else if (propertyType.SpecialType == SpecialType.System_String)
-        {
             GenerateStringHelperMethods(sourceBuilder, className, propertyName, columnName);
-        }
         else if (IsBooleanType(propertyType))
-        {
             GenerateBooleanHelperMethods(sourceBuilder, className, propertyName, columnName);
-        }
 
         if (IsNullableType(propertyType))
-        {
             GenerateNullableHelperMethods(sourceBuilder, className, propertyName, columnName);
-        }
     }
 
-    private void GenerateNumericHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName, ITypeSymbol propertyType)
+    private static void GenerateNumericHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName, ITypeSymbol propertyType)
     {
         string typeName = GetFullTypeName(propertyType);
 
@@ -154,7 +164,7 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine();
     }
 
-    private void GenerateDateTimeHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName, ITypeSymbol propertyType)
+    private static void GenerateDateTimeHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName, ITypeSymbol propertyType)
     {
         string typeName = GetFullTypeName(propertyType);
 
@@ -214,7 +224,7 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine();
     }
 
-    private void GenerateStringHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName)
+    private static void GenerateStringHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName)
     {
         sourceBuilder.AppendLine($"    public static global::Rymote.Radiant.Smart.Query.ISmartQuery<{className}> Where{propertyName}Like(");
         sourceBuilder.AppendLine($"        this global::Rymote.Radiant.Smart.Query.ISmartQuery<{className}> query,");
@@ -249,7 +259,7 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine();
     }
 
-    private void GenerateBooleanHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName)
+    private static void GenerateBooleanHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName)
     {
         sourceBuilder.AppendLine($"    public static global::Rymote.Radiant.Smart.Query.ISmartQuery<{className}> Where{propertyName}IsTrue(");
         sourceBuilder.AppendLine($"        this global::Rymote.Radiant.Smart.Query.ISmartQuery<{className}> query)");
@@ -266,7 +276,7 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine();
     }
 
-    private void GenerateNullableHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName)
+    private static void GenerateNullableHelperMethods(StringBuilder sourceBuilder, string className, string propertyName, string columnName)
     {
         sourceBuilder.AppendLine($"    public static global::Rymote.Radiant.Smart.Query.ISmartQuery<{className}> Where{propertyName}IsNull(");
         sourceBuilder.AppendLine($"        this global::Rymote.Radiant.Smart.Query.ISmartQuery<{className}> query)");
@@ -283,7 +293,7 @@ public sealed class SmartModelGenerator : ISourceGenerator
         sourceBuilder.AppendLine();
     }
 
-    private string GetColumnName(IPropertySymbol property)
+    private static string GetColumnName(IPropertySymbol property)
     {
         AttributeData? columnAttribute = property.GetAttributes()
             .FirstOrDefault(attribute => attribute.AttributeClass?.Name == "ColumnAttribute");
@@ -292,22 +302,20 @@ public sealed class SmartModelGenerator : ISourceGenerator
         {
             object? value = columnAttribute.ConstructorArguments[0].Value;
             if (value is string columnName)
-            {
                 return columnName;
-            }
         }
 
         return ConvertToSnakeCase(property.Name);
     }
 
-    private string ConvertToSnakeCase(string propertyName)
+    private static string ConvertToSnakeCase(string propertyName)
     {
-        return string.Concat(propertyName.Select((character, index) => 
-            index > 0 && char.IsUpper(character) ? "_" + character : character.ToString()))
+        return string.Concat(propertyName.Select((character, index) =>
+                index > 0 && char.IsUpper(character) ? "_" + character : character.ToString()))
             .ToLower();
     }
 
-    private bool IsRelationshipProperty(IPropertySymbol property)
+    private static bool IsRelationshipProperty(IPropertySymbol property)
     {
         return property.GetAttributes().Any(attribute =>
             attribute.AttributeClass?.Name == "HasManyAttribute" ||
@@ -315,7 +323,7 @@ public sealed class SmartModelGenerator : ISourceGenerator
             attribute.AttributeClass?.Name == "BelongsToAttribute");
     }
 
-    private bool IsNumericType(ITypeSymbol type)
+    private static bool IsNumericType(ITypeSymbol type)
     {
         ITypeSymbol underlyingType = GetUnderlyingType(type);
         return underlyingType.SpecialType == SpecialType.System_Int16 ||
@@ -326,67 +334,35 @@ public sealed class SmartModelGenerator : ISourceGenerator
                underlyingType.SpecialType == SpecialType.System_Double;
     }
 
-    private bool IsDateTimeType(ITypeSymbol type)
+    private static bool IsDateTimeType(ITypeSymbol type)
     {
         ITypeSymbol underlyingType = GetUnderlyingType(type);
-        return underlyingType.Name == "DateTime" || underlyingType.Name == "DateTimeOffset" || 
+        return underlyingType.Name == "DateTime" || underlyingType.Name == "DateTimeOffset" ||
                underlyingType.Name == "DateOnly" || underlyingType.Name == "TimeOnly";
     }
 
-    private bool IsBooleanType(ITypeSymbol type)
+    private static bool IsBooleanType(ITypeSymbol type)
     {
         ITypeSymbol underlyingType = GetUnderlyingType(type);
         return underlyingType.SpecialType == SpecialType.System_Boolean;
     }
 
-    private bool IsNullableType(ITypeSymbol type)
+    private static bool IsNullableType(ITypeSymbol type)
     {
         return type.NullableAnnotation == NullableAnnotation.Annotated ||
                (type is INamedTypeSymbol namedType && namedType.ConstructedFrom.SpecialType == SpecialType.System_Nullable_T);
     }
 
-    private ITypeSymbol GetUnderlyingType(ITypeSymbol type)
+    private static ITypeSymbol GetUnderlyingType(ITypeSymbol type)
     {
         if (type is INamedTypeSymbol namedType && namedType.ConstructedFrom.SpecialType == SpecialType.System_Nullable_T)
-        {
             return namedType.TypeArguments[0];
-        }
+
         return type;
     }
 
-    private string GetFullTypeName(ITypeSymbol type)
+    private static string GetFullTypeName(ITypeSymbol type)
     {
         return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
     }
-
-    private sealed class SmartModelSyntaxReceiver : ISyntaxContextReceiver
-    {
-        public List<ClassDeclarationSyntax> SmartModelClasses { get; } = new List<ClassDeclarationSyntax>();
-
-        public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
-        {
-            if (context.Node is ClassDeclarationSyntax classDeclaration)
-            {
-                INamedTypeSymbol? classSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclaration);
-                if (classSymbol != null && InheritsFromSmartModel(classSymbol))
-                {
-                    SmartModelClasses.Add(classDeclaration);
-                }
-            }
-        }
-
-        private bool InheritsFromSmartModel(INamedTypeSymbol typeSymbol)
-        {
-            INamedTypeSymbol? baseType = typeSymbol.BaseType;
-            while (baseType != null)
-            {
-                if (baseType.Name == "SmartModel" && baseType.ContainingNamespace.ToDisplayString().Contains("Rymote.Radiant.Smart"))
-                {
-                    return true;
-                }
-                baseType = baseType.BaseType;
-            }
-            return false;
-        }
-    }
-} 
+}
