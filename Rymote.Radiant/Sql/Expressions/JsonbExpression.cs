@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -57,4 +58,25 @@ public sealed class JsonbExpression : ISqlExpression
     public static JsonbExpression PathQuery(string column, string jsonPath) =>
         new(new FunctionExpression("jsonb_path_query", new ColumnExpression(column), new LiteralExpression(jsonPath)),
             JsonbOperator.StrictContains, new LiteralExpression("{}"));
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(JsonColumn);
+        emitter.WriteSpace().WriteRaw(GetDialectOperator(emitter)).WriteSpace();
+        emitter.Emit(Value);
+    }
+
+    private string GetDialectOperator(SqlEmitter emitter) => Operator switch
+    {
+        JsonbOperator.PathExists => emitter.Dialect.Jsonb.PathExistsOperator,
+        JsonbOperator.PathMatch => emitter.Dialect.Jsonb.PathMatchOperator,
+        JsonbOperator.DeletePath => emitter.Dialect.Jsonb.DeletePathOperator,
+        JsonbOperator.ConcatPath => emitter.Dialect.Jsonb.ConcatenateOperator,
+        JsonbOperator.StrictContains => emitter.Dialect.Jsonb.ContainsOperator,
+        JsonbOperator.StrictContainedBy => emitter.Dialect.Jsonb.ContainedByOperator,
+        JsonbOperator.HasKey => emitter.Dialect.Jsonb.HasKeyOperator,
+        JsonbOperator.HasAnyKey => emitter.Dialect.Jsonb.HasAnyKeyOperator,
+        JsonbOperator.HasAllKeys => emitter.Dialect.Jsonb.HasAllKeysOperator,
+        _ => throw new ArgumentException("Invalid JSONB operator")
+    };
 }

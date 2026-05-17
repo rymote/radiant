@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -61,6 +62,31 @@ public sealed class PatternMatchExpression : ISqlExpression
         PatternMatchOperator.RegexIMatch => SqlKeywords.REGEXP_IMATCH_OP,
         PatternMatchOperator.NotRegexMatch => SqlKeywords.NOT_REGEXP_MATCH,
         PatternMatchOperator.NotRegexIMatch => SqlKeywords.NOT_REGEXP_IMATCH,
+        _ => throw new ArgumentOutOfRangeException()
+    };
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(Column);
+        emitter.WriteSpace().WriteRaw(GetDialectOperator(emitter)).WriteSpace();
+        emitter.Emit(Pattern);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+    }
+
+    private string GetDialectOperator(SqlEmitter emitter) => Operator switch
+    {
+        PatternMatchOperator.Like => "LIKE",
+        PatternMatchOperator.ILike => emitter.Dialect.CaseInsensitiveLikeOperator,
+        PatternMatchOperator.NotLike => "NOT LIKE",
+        PatternMatchOperator.NotILike => "NOT " + emitter.Dialect.CaseInsensitiveLikeOperator,
+        PatternMatchOperator.SimilarTo => "SIMILAR TO",
+        PatternMatchOperator.NotSimilarTo => "NOT SIMILAR TO",
+        PatternMatchOperator.RegexMatch => "~",
+        PatternMatchOperator.RegexIMatch => "~*",
+        PatternMatchOperator.NotRegexMatch => "!~",
+        PatternMatchOperator.NotRegexIMatch => "!~*",
         _ => throw new ArgumentOutOfRangeException()
     };
 

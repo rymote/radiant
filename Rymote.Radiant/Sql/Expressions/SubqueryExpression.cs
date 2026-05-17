@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Builder;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -40,6 +41,21 @@ public sealed class SubqueryExpression : ISqlExpression
         {
             object? value = queryCommand.Parameters.Get<object>(parameterName);
             parameterBag.Add(value);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        QueryCommand queryCommand = Query.Build();
+        emitter.WriteRaw("(").WriteRaw(queryCommand.SqlText).WriteRaw(")");
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+
+        foreach (string parameterName in queryCommand.Parameters.ParameterNames)
+        {
+            object? value = queryCommand.Parameters.Get<object>(parameterName);
+            emitter.Parameters.Add(value);
         }
     }
 }

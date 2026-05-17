@@ -52,7 +52,23 @@ jobs:
             --no-build \
             --output ./artifacts \
             /p:Version=${{ env.VERSION }}
-          
+
+      - name: Pack Rymote.Radiant.Adapters.PostgreSql
+        run: |
+          dotnet pack Rymote.Radiant.Adapters.PostgreSql/Rymote.Radiant.Adapters.PostgreSql.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ env.VERSION }}
+
+      - name: Pack Rymote.Radiant.Adapters.Sqlite
+        run: |
+          dotnet pack Rymote.Radiant.Adapters.Sqlite/Rymote.Radiant.Adapters.Sqlite.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ env.VERSION }}
+
       - name: Push to nuget.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

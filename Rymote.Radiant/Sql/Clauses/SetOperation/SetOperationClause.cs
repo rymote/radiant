@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Builder;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -31,14 +32,37 @@ public sealed class SetOperationClause : IQueryClause
             .Append(SqlKeywords.SPACE)
             .Append(operationText)
             .Append(SqlKeywords.SPACE);
-        
+
         QueryCommand queryCommand = Query.Build();
         stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand).Append(SqlKeywords.CLOSE_PAREN);
-        
+
         foreach (string parameterName in queryCommand.Parameters.ParameterNames)
         {
             object? value = queryCommand.Parameters.Get<object>(parameterName);
             parameterBag.Add(value);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        string operationText = OperationType switch
+        {
+            SetOperationType.Union => "UNION",
+            SetOperationType.UnionAll => "UNION ALL",
+            SetOperationType.Intersect => "INTERSECT",
+            SetOperationType.Except => "EXCEPT",
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        emitter.WriteSpace().WriteRaw(operationText).WriteSpace();
+
+        QueryCommand queryCommand = Query.Build();
+        emitter.WriteRaw("(").WriteRaw(queryCommand.SqlText).WriteRaw(")");
+
+        foreach (string parameterName in queryCommand.Parameters.ParameterNames)
+        {
+            object? value = queryCommand.Parameters.Get<object>(parameterName);
+            emitter.Parameters.Add(value);
         }
     }
 }

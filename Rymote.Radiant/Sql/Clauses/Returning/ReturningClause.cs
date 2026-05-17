@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Clauses;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -35,6 +36,21 @@ public sealed class ReturningClause : IQueryClause
 
             if (index < ColumnNames.Count - 1)
                 stringBuilder.Append(SqlKeywords.COMMA);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace()
+            .WriteKeyword(emitter.Dialect.ReturningKeyword)
+            .WriteSpace();
+
+        for (int index = 0; index < ColumnNames.Count; index++)
+        {
+            emitter.WriteIdentifier(ColumnNames[index]);
+
+            if (index < ColumnNames.Count - 1)
+                emitter.WriteRaw(", ");
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -21,19 +22,19 @@ public sealed class LiteralExpression : ISqlExpression
                     .Append(str.Replace(SqlKeywords.SINGLE_QUOTE, SqlKeywords.SINGLE_QUOTE + SqlKeywords.SINGLE_QUOTE))
                     .Append(SqlKeywords.SINGLE_QUOTE);
                 break;
-            
+
             case int or long or decimal or double or float:
                 stringBuilder.Append(Value);
                 break;
-            
+
             case bool boolean:
                 stringBuilder.Append(boolean ? SqlKeywords.TRUE : SqlKeywords.FALSE);
                 break;
-            
+
             case null:
                 stringBuilder.Append(SqlKeywords.NULL);
                 break;
-            
+
             default:
                 stringBuilder.Append(SqlKeywords.SINGLE_QUOTE)
                     .Append(Value.ToString()?.Replace(SqlKeywords.SINGLE_QUOTE, SqlKeywords.SINGLE_QUOTE + SqlKeywords.SINGLE_QUOTE))
@@ -41,7 +42,15 @@ public sealed class LiteralExpression : ISqlExpression
                 break;
         }
     }
-    
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (Value is null)
+            emitter.WriteKeyword(emitter.Dialect.NullLiteral);
+        else
+            emitter.WritePlaceholderForValue(Value);
+    }
+
     public static LiteralExpression String(string value) => new(value);
     public static LiteralExpression Number(int value) => new(value);
     public static LiteralExpression Number(decimal value) => new(value);

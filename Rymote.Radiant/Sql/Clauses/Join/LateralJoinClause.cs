@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Builder;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -52,6 +53,39 @@ public sealed class LateralJoinClause : IQueryClause
         {
             object? value = subQueryCommand.Parameters.Get<object>(parameterName);
             parameterBag.Add(value);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace();
+
+        if (JoinType != JoinType.Cross)
+        {
+            emitter.WriteRaw(JoinType switch
+            {
+                JoinType.Inner => "INNER JOIN",
+                JoinType.Left => "LEFT JOIN",
+                JoinType.Right => "RIGHT JOIN",
+                JoinType.Full => "FULL JOIN",
+                _ => "INNER JOIN"
+            });
+        }
+        else
+        {
+            emitter.WriteRaw("CROSS JOIN");
+        }
+
+        emitter.WriteSpace().WriteKeyword(emitter.Dialect.LateralKeyword).WriteSpace();
+
+        QueryCommand subQueryCommand = SubQuery.Build();
+        emitter.WriteRaw("(").WriteRaw(subQueryCommand.SqlText).WriteRaw(")");
+        emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+
+        foreach (string parameterName in subQueryCommand.Parameters.ParameterNames)
+        {
+            object? value = subQueryCommand.Parameters.Get<object>(parameterName);
+            emitter.Parameters.Add(value);
         }
     }
 }

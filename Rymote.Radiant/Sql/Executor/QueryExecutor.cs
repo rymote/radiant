@@ -1,4 +1,7 @@
-﻿using System.Data;
+using System.Collections.Generic;
+using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
 using Dapper;
 
 namespace Rymote.Radiant.Sql.Executor;
@@ -6,24 +9,40 @@ namespace Rymote.Radiant.Sql.Executor;
 public sealed class QueryExecutor
 {
     private readonly IDbConnection databaseConnection;
+    private readonly IDbTransaction? activeTransaction;
 
-    public QueryExecutor(IDbConnection databaseConnection)
+    public QueryExecutor(IDbConnection databaseConnection, IDbTransaction? activeTransaction = null)
     {
         this.databaseConnection = databaseConnection;
+        this.activeTransaction = activeTransaction;
     }
 
-    public async Task<IEnumerable<T>> QueryAsync<T>(QueryCommand queryCommand)
+    public async Task<IEnumerable<TResult>> QueryAsync<TResult>(QueryCommand queryCommand, CancellationToken cancellationToken = default)
     {
-        return await databaseConnection.QueryAsync<T>(queryCommand, queryCommand.Parameters);
+        return await databaseConnection.QueryAsync<TResult>(BuildCommand(queryCommand, cancellationToken));
     }
 
-    public async Task<T> QuerySingleAsync<T>(QueryCommand queryCommand)
+    public async Task<TResult> QuerySingleAsync<TResult>(QueryCommand queryCommand, CancellationToken cancellationToken = default)
     {
-        return await databaseConnection.QuerySingleAsync<T>(queryCommand, queryCommand.Parameters);
+        return await databaseConnection.QuerySingleAsync<TResult>(BuildCommand(queryCommand, cancellationToken));
     }
 
-    public async Task<int> ExecuteAsync(QueryCommand queryCommand)
+    public async Task<TResult?> QuerySingleOrDefaultAsync<TResult>(QueryCommand queryCommand, CancellationToken cancellationToken = default)
     {
-        return await databaseConnection.ExecuteAsync(queryCommand, queryCommand.Parameters);
+        return await databaseConnection.QuerySingleOrDefaultAsync<TResult?>(BuildCommand(queryCommand, cancellationToken));
+    }
+
+    public async Task<int> ExecuteAsync(QueryCommand queryCommand, CancellationToken cancellationToken = default)
+    {
+        return await databaseConnection.ExecuteAsync(BuildCommand(queryCommand, cancellationToken));
+    }
+
+    private CommandDefinition BuildCommand(QueryCommand queryCommand, CancellationToken cancellationToken)
+    {
+        return new CommandDefinition(
+            commandText: queryCommand.SqlText,
+            parameters: queryCommand.Parameters,
+            transaction: activeTransaction,
+            cancellationToken: cancellationToken);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -84,5 +85,62 @@ public sealed class OnConflictClause : IQueryClause
                 .Append(SqlKeywords.WHERE)
                 .Append(SqlKeywords.SPACE)
                 .Append(WhereCondition);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace().WriteKeyword(emitter.Dialect.OnConflict);
+
+        if (ConflictColumns?.Length > 0)
+        {
+            emitter.WriteSpace().WriteRaw("(");
+            for (int index = 0; index < ConflictColumns.Length; index++)
+            {
+                if (index > 0)
+                    emitter.WriteRaw(", ");
+
+                emitter.WriteIdentifier(ConflictColumns[index]);
+            }
+            emitter.WriteRaw(")");
+        }
+        else if (!string.IsNullOrEmpty(ConstraintName))
+        {
+            emitter.WriteSpace().WriteRaw("ON CONSTRAINT").WriteSpace().WriteRaw(ConstraintName);
+        }
+
+        emitter.WriteSpace();
+
+        switch (Action)
+        {
+            case OnConflictAction.DoNothing:
+                emitter.WriteKeyword(emitter.Dialect.DoNothing);
+                break;
+
+            case OnConflictAction.DoUpdate:
+                emitter.WriteKeyword(emitter.Dialect.DoUpdate).WriteSpace().WriteKeyword(emitter.Dialect.Set);
+                break;
+
+            default:
+                throw new ArgumentException("Invalid conflict action");
+        }
+
+        if (Action == OnConflictAction.DoUpdate && UpdateValues?.Count > 0)
+        {
+            emitter.WriteSpace();
+            bool first = true;
+            foreach ((string column, object value) in UpdateValues)
+            {
+                if (!first) emitter.WriteRaw(", ");
+                first = false;
+
+                emitter.WriteIdentifier(column).WriteRaw(" = ").WritePlaceholderForValue(value);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(WhereCondition))
+            emitter.WriteSpace()
+                .WriteKeyword(emitter.Dialect.Where)
+                .WriteSpace()
+                .WriteRaw(WhereCondition);
     }
 }

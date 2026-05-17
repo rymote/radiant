@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -40,9 +41,27 @@ public sealed class SetClause : IQueryClause
                 .Append(SqlKeywords.EQUALS);
                 
             assignment.AppendValueTo(stringBuilder);
-            
-            if (index < Assignments.Count - 1) 
+
+            if (index < Assignments.Count - 1)
                 stringBuilder.Append(SqlKeywords.COMMA);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace()
+            .WriteKeyword(emitter.Dialect.Set)
+            .WriteSpace();
+
+        for (int index = 0; index < Assignments.Count; index++)
+        {
+            SetAssignment assignment = Assignments[index];
+            emitter.WriteIdentifier(assignment.ColumnName).WriteRaw(" = ");
+
+            assignment.AcceptValue(emitter);
+
+            if (index < Assignments.Count - 1)
+                emitter.WriteRaw(", ");
         }
     }
 }

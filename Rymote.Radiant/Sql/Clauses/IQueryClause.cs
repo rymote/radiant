@@ -1,9 +1,14 @@
-﻿using System.Text;
+using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Parameters;
 
 namespace Rymote.Radiant.Sql.Clauses;
 
 public interface IQueryClause
 {
+    /// <summary>Adapter-aware emission; the canonical path.</summary>
+    void Accept(SqlEmitter emitter);
+
+    /// <summary>Legacy emission path. Will be removed once every clause routes through <see cref="Accept"/>.</summary>
     void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag);
 }

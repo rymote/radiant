@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Clauses.Where;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -52,4 +53,12 @@ public sealed class HavingClause : IQueryClause
     }
 
     public bool HasConditions => havingGroup.HasConditions;
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (!havingGroup.HasConditions) return;
+
+        emitter.WriteSpace().WriteKeyword(emitter.Dialect.Having).WriteSpace();
+        emitter.Emit(havingGroup);
+    }
 }

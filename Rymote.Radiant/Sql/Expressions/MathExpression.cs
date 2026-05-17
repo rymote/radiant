@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -55,4 +56,16 @@ public sealed class MathExpression : ISqlExpression
         MathOperator.Modulo => SqlKeywords.MODULO,
         _ => throw new ArgumentOutOfRangeException()
     };
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw("(");
+        emitter.Emit(Left);
+        emitter.WriteSpace().WriteRaw(GetOperatorSymbol()).WriteSpace();
+        emitter.Emit(Right);
+        emitter.WriteRaw(")");
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+    }
 }

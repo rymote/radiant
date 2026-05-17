@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -46,6 +47,22 @@ public sealed class VectorExpression : ISqlExpression
         new(new LiteralExpression(1), VectorOperator.CosineDistance,
             new VectorExpression(new ColumnExpression(column), VectorOperator.CosineDistance,
                 new VectorLiteralExpression(vector)));
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(LeftVector);
+        emitter.WriteSpace().WriteRaw(GetDialectOperator(emitter)).WriteSpace();
+        emitter.Emit(RightVector);
+    }
+
+    private string GetDialectOperator(SqlEmitter emitter) => Operator switch
+    {
+        VectorOperator.L2Distance => emitter.Dialect.Vector.L2DistanceOperator,
+        VectorOperator.InnerProduct => emitter.Dialect.Vector.InnerProductOperator,
+        VectorOperator.CosineDistance => emitter.Dialect.Vector.CosineDistanceOperator,
+        VectorOperator.CosineSimilarity => "cosine_similarity",
+        _ => throw new ArgumentOutOfRangeException()
+    };
 }
 
 public sealed class VectorLiteralExpression : ISqlExpression
@@ -61,5 +78,10 @@ public sealed class VectorLiteralExpression : ISqlExpression
             .Append(string.Join(SqlKeywords.COMMA.Trim(), Vector))
             .Append(SqlKeywords.CLOSE_BRACKET)
             .Append(SqlKeywords.SINGLE_QUOTE);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WritePlaceholderForValue(Vector);
     }
 }

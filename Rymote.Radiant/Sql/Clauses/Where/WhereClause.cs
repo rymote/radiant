@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Expressions;
 using Rymote.Radiant.Sql.Parameters;
@@ -63,4 +64,12 @@ public sealed class WhereClause : IQueryClause
     }
 
     public bool HasConditions => rootGroup.HasConditions;
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (!rootGroup.HasConditions) return;
+
+        emitter.WriteSpace().WriteKeyword(emitter.Dialect.Where).WriteSpace();
+        emitter.Emit(rootGroup);
+    }
 }

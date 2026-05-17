@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -22,12 +23,26 @@ public sealed class LimitClause : IQueryClause
             .Append(SqlKeywords.LIMIT)
             .Append(SqlKeywords.SPACE)
             .Append(Limit);
-        
-        if (Offset.HasValue) 
+
+        if (Offset.HasValue)
             stringBuilder
                 .Append(SqlKeywords.SPACE)
                 .Append(SqlKeywords.OFFSET)
                 .Append(SqlKeywords.SPACE)
                 .Append(Offset.Value);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace()
+            .WriteKeyword(emitter.Dialect.Limit)
+            .WriteSpace()
+            .WriteRaw(Limit.ToString());
+
+        if (Offset.HasValue)
+            emitter.WriteSpace()
+                .WriteKeyword(emitter.Dialect.Offset)
+                .WriteSpace()
+                .WriteRaw(Offset.Value.ToString());
     }
 }

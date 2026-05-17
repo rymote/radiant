@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Clauses.OrderBy;
 using Rymote.Radiant.Sql.Clauses.WindowFunction;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -126,5 +127,65 @@ public sealed class WindowFunctionExpression : ISqlExpression
             stringBuilder
                 .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
                 .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw(FunctionName).WriteRaw("(");
+        for (int index = 0; index < Arguments.Count; index++)
+        {
+            if (index > 0)
+                emitter.WriteRaw(", ");
+
+            emitter.Emit(Arguments[index]);
+        }
+
+        emitter.WriteRaw(")");
+
+        if (respectNulls)
+            emitter.WriteSpace().WriteRaw("RESPECT NULLS");
+        else if (ignoreNulls)
+            emitter.WriteSpace().WriteRaw("IGNORE NULLS");
+
+        emitter.WriteSpace().WriteRaw("OVER").WriteSpace().WriteRaw("(");
+
+        if (partitionByColumns.Count > 0)
+        {
+            emitter.WriteRaw("PARTITION BY").WriteSpace();
+            for (int index = 0; index < partitionByColumns.Count; index++)
+            {
+                if (index > 0) emitter.WriteRaw(", ");
+                emitter.WriteIdentifier(partitionByColumns[index]);
+            }
+        }
+
+        if (orderByColumns.Count > 0)
+        {
+            if (partitionByColumns.Count > 0) emitter.WriteSpace();
+            emitter.WriteKeyword(emitter.Dialect.OrderBy).WriteSpace();
+
+            for (int index = 0; index < orderByColumns.Count; index++)
+            {
+                if (index > 0)
+                    emitter.WriteRaw(", ");
+
+                (string column, SortDirection direction) = orderByColumns[index];
+                emitter.WriteIdentifier(column).WriteSpace().WriteKeyword(direction == SortDirection.Descending
+                    ? emitter.Dialect.Descending
+                    : emitter.Dialect.Ascending);
+            }
+        }
+
+        if (frameClause != null)
+        {
+            if (partitionByColumns.Count > 0 || orderByColumns.Count > 0)
+                emitter.WriteSpace();
+            frameClause.Accept(emitter);
+        }
+
+        emitter.WriteRaw(")");
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Builder;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -53,6 +54,37 @@ public sealed class CteClause : IQueryClause
         {
             object? value = queryCommand.Parameters.Get<object>(parameterName);
             parameterBag.Add(value);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteIdentifier(Name);
+
+        if (ColumnNames.Count > 0)
+        {
+            emitter.WriteSpace().WriteRaw("(");
+            for (int index = 0; index < ColumnNames.Count; index++)
+            {
+                if (index > 0)
+                    emitter.WriteRaw(", ");
+
+                emitter.WriteIdentifier(ColumnNames[index]);
+            }
+
+            emitter.WriteRaw(")");
+        }
+
+        emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteRaw("(");
+
+        QueryCommand queryCommand = Query.Build();
+        emitter.WriteRaw(queryCommand.SqlText);
+        emitter.WriteRaw(")");
+
+        foreach (string parameterName in queryCommand.Parameters.ParameterNames)
+        {
+            object? value = queryCommand.Parameters.Get<object>(parameterName);
+            emitter.Parameters.Add(value);
         }
     }
 }

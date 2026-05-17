@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -61,4 +62,40 @@ public sealed class MultipleValuesClause : IQueryClause
     }
 
     public int RowCount => valueRows.Count;
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (valueRows.Count == 0) return;
+
+        emitter.WriteSpace().WriteRaw("(");
+        for (int index = 0; index < ColumnNames.Count; index++)
+        {
+            if (index > 0)
+                emitter.WriteRaw(", ");
+
+            emitter.WriteIdentifier(ColumnNames[index]);
+        }
+
+        emitter.WriteRaw(")")
+            .WriteSpace()
+            .WriteKeyword(emitter.Dialect.Values)
+            .WriteSpace();
+
+        for (int rowIndex = 0; rowIndex < valueRows.Count; rowIndex++)
+        {
+            if (rowIndex > 0) emitter.WriteRaw(", ");
+
+            emitter.WriteRaw("(");
+            List<object> row = valueRows[rowIndex];
+            for (int columnIndex = 0; columnIndex < row.Count; columnIndex++)
+            {
+                if (columnIndex > 0)
+                    emitter.WriteRaw(", ");
+
+                emitter.WritePlaceholderForValue(row[columnIndex]);
+            }
+
+            emitter.WriteRaw(")");
+        }
+    }
 }

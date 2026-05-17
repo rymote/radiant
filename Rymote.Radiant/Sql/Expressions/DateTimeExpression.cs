@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -84,5 +85,46 @@ public sealed class DateTimeExpression : ISqlExpression
             stringBuilder
                 .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
                 .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        switch (Function)
+        {
+            case DateTimeFunction.CurrentDate:
+                emitter.WriteRaw("CURRENT_DATE");
+                break;
+
+            case DateTimeFunction.CurrentTime:
+                emitter.WriteRaw("CURRENT_TIME");
+                break;
+
+            case DateTimeFunction.CurrentTimestamp:
+                emitter.WriteKeyword(emitter.Dialect.CurrentTimestampExpression);
+                break;
+
+            case DateTimeFunction.Now:
+                emitter.WriteRaw("NOW()");
+                break;
+
+            case DateTimeFunction.DateTrunc:
+                emitter.WriteRaw("date_trunc").WriteRaw("(")
+                    .WritePlaceholderForValue(Unit)
+                    .WriteRaw(", ");
+                emitter.Emit(Expression!);
+                emitter.WriteRaw(")");
+                break;
+
+            case DateTimeFunction.Extract:
+                emitter.WriteRaw("EXTRACT").WriteRaw("(")
+                    .WriteRaw(Unit ?? string.Empty).WriteSpace()
+                    .WriteKeyword(emitter.Dialect.From).WriteSpace();
+                emitter.Emit(Expression!);
+                emitter.WriteRaw(")");
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
     }
 }

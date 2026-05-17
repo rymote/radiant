@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Builder;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -19,16 +20,31 @@ public sealed class SubqueryFromClause : IQueryClause
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
         stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.FROM).Append(SqlKeywords.SPACE);
-        
+
         QueryCommand queryCommand = Query.Build();
         stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand).Append(SqlKeywords.CLOSE_PAREN);
         stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE);
         stringBuilder.Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-        
+
         foreach (string parameterName in queryCommand.Parameters.ParameterNames)
         {
             object? value = queryCommand.Parameters.Get<object>(parameterName);
             parameterBag.Add(value);
+        }
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace().WriteKeyword(emitter.Dialect.From).WriteSpace();
+
+        QueryCommand queryCommand = Query.Build();
+        emitter.WriteRaw("(").WriteRaw(queryCommand.SqlText).WriteRaw(")");
+        emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+
+        foreach (string parameterName in queryCommand.Parameters.ParameterNames)
+        {
+            object? value = queryCommand.Parameters.Get<object>(parameterName);
+            emitter.Parameters.Add(value);
         }
     }
 }

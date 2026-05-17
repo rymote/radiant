@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Clauses.Table;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -13,10 +14,16 @@ public sealed class FromClause : TableClause
         : base(tableName, schemaName, alias)
     {
     }
-    
+
     public override void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
         stringBuilder.Append(SqlKeywords.FROM).Append(SqlKeywords.SPACE);
         base.AppendTo(stringBuilder, parameterBag);
+    }
+
+    public override void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteKeyword(emitter.Dialect.From).WriteSpace();
+        base.Accept(emitter);
     }
 }

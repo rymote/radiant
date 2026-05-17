@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -67,6 +68,27 @@ public sealed class ArrayExpression : ISqlExpression
 
     public static ArrayExpression Concatenate(string column, object[] array) =>
         new(new ColumnExpression(column), ArrayOperator.Concatenate, new ArrayLiteralExpression(array));
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(Left);
+        emitter.WriteSpace().WriteRaw(GetDialectOperator(emitter)).WriteSpace();
+        emitter.Emit(Right);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+    }
+
+    private string GetDialectOperator(SqlEmitter emitter) => Operator switch
+    {
+        ArrayOperator.Contains => emitter.Dialect.Array.ContainsOperator,
+        ArrayOperator.ContainedBy => emitter.Dialect.Array.ContainedByOperator,
+        ArrayOperator.Overlap => emitter.Dialect.Array.OverlapOperator,
+        ArrayOperator.Concatenate => emitter.Dialect.Array.ConcatenateOperator,
+        ArrayOperator.Equal => "=",
+        ArrayOperator.NotEqual => "!=",
+        _ => throw new ArgumentOutOfRangeException()
+    };
 }
 
 public sealed class ArrayLiteralExpression : ISqlExpression
@@ -108,8 +130,13 @@ public sealed class ArrayLiteralExpression : ISqlExpression
             if (index < Value.Length - 1)
                 stringBuilder.Append(SqlKeywords.COMMA);
         }
-        
+
         stringBuilder.Append("]");
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WritePlaceholderForValue(Value);
     }
 }
 
@@ -174,4 +201,20 @@ public sealed class ArrayFunctionExpression : ISqlExpression
 
     public static ArrayFunctionExpression Cardinality(ISqlExpression array) =>
         new(SqlKeywords.CARDINALITY, array);
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw(FunctionName).WriteRaw("(");
+
+        for (int index = 0; index < Arguments.Length; index++)
+        {
+            if (index > 0) emitter.WriteRaw(", ");
+            emitter.Emit(Arguments[index]);
+        }
+
+        emitter.WriteRaw(")");
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+    }
 }

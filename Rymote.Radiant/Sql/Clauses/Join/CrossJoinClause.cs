@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -37,5 +38,15 @@ public sealed class CrossJoinClause : IQueryClause
                 .Append(SqlKeywords.QUOTE)
                 .Append(Alias)
                 .Append(SqlKeywords.QUOTE);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace().WriteRaw("CROSS JOIN").WriteSpace();
+
+        emitter.WriteQualifiedName(SchemaName, TableName);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
     }
 }

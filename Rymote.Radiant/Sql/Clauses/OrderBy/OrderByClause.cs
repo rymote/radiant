@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -25,8 +26,20 @@ public sealed class OrderByClause : IQueryClause
             .Append(ColumnName)
             .Append(SqlKeywords.QUOTE)
             .Append(SqlKeywords.SPACE)
-            .Append(Direction == SortDirection.Descending ? 
-                SqlKeywords.DESC : 
+            .Append(Direction == SortDirection.Descending ?
+                SqlKeywords.DESC :
                 SqlKeywords.ASC);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace()
+            .WriteKeyword(emitter.Dialect.OrderBy)
+            .WriteSpace()
+            .WriteIdentifier(ColumnName)
+            .WriteSpace()
+            .WriteKeyword(Direction == SortDirection.Descending
+                ? emitter.Dialect.Descending
+                : emitter.Dialect.Ascending);
     }
 }

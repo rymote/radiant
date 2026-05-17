@@ -12,11 +12,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- Dapper and Npgsql will be removed once the SqlEmitter refactor lands; kept transiently so the v1 paths still compile during migration. -->
         <PackageReference Include="Dapper" Version="2.1.72"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.7"/>
         <PackageReference Include="Npgsql" Version="10.0.2"/>
-<PackageReference Include="System.Text.Json" Version="10.0.7"/>
+        <PackageReference Include="System.Text.Json" Version="10.0.7"/>
     </ItemGroup>
 
     <ItemGroup>

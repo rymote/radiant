@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -41,4 +42,17 @@ public sealed class GroupByClause : IQueryClause
     }
 
     public bool HasColumns => groupByColumns.Count > 0;
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (groupByColumns.Count == 0) return;
+
+        emitter.WriteSpace().WriteKeyword(emitter.Dialect.GroupBy).WriteSpace();
+
+        for (int index = 0; index < groupByColumns.Count; index++)
+        {
+            if (index > 0) emitter.WriteRaw(", ");
+            emitter.WriteIdentifier(groupByColumns[index]);
+        }
+    }
 }

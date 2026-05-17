@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -21,15 +22,15 @@ public sealed class WithClause : IQueryClause
         if (ctes.Count == 0) return;
 
         stringBuilder.Append(SqlKeywords.WITH).Append(SqlKeywords.SPACE);
-        
+
         if (hasRecursiveCte)
             stringBuilder.Append(SqlKeywords.RECURSIVE).Append(SqlKeywords.SPACE);
 
         for (int index = 0; index < ctes.Count; index++)
         {
-            if (index > 0) 
+            if (index > 0)
                 stringBuilder.Append(SqlKeywords.COMMA);
-            
+
             ctes[index].AppendTo(stringBuilder, parameterBag);
         }
 
@@ -37,4 +38,24 @@ public sealed class WithClause : IQueryClause
     }
 
     public bool HasCtes => ctes.Count > 0;
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (ctes.Count == 0) return;
+
+        emitter.WriteKeyword(emitter.Dialect.With).WriteSpace();
+
+        if (hasRecursiveCte)
+            emitter.WriteKeyword(emitter.Dialect.Recursive).WriteSpace();
+
+        for (int index = 0; index < ctes.Count; index++)
+        {
+            if (index > 0)
+                emitter.WriteRaw(", ");
+
+            emitter.Emit(ctes[index]);
+        }
+
+        emitter.WriteSpace();
+    }
 }

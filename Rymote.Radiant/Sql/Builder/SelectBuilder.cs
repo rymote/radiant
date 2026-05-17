@@ -608,4 +608,5 @@ public sealed class SelectBuilder : IQueryBuilder
     public bool IsDistinct => isDistinct;
 
     public QueryCommand Build() => QueryCompiler.Compile(this);
+    public QueryCommand Build(Adapters.IDatabaseAdapter adapter) => QueryCompiler.Compile(this, adapter);
 }

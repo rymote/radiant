@@ -107,4 +107,5 @@ public sealed class UpdateBuilder : IQueryBuilder
     }
 
     public QueryCommand Build() => QueryCompiler.Compile(this);
+    public QueryCommand Build(Adapters.IDatabaseAdapter adapter) => QueryCompiler.Compile(this, adapter);
 }

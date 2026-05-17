@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Rymote.Radiant.Smart.Metadata;
 using Rymote.Radiant.Smart.Expressions;
 using Rymote.Radiant.Smart.Loading;
+using Rymote.Radiant.Smart.Context;
 using Rymote.Radiant.Sql.Builder;
 using Rymote.Radiant.Sql.Executor;
 using Rymote.Radiant.Sql.Clauses.OrderBy;
@@ -22,6 +23,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     private readonly SelectBuilder _selectBuilder;
     private readonly List<Expression<Func<TModel, object>>> _includeExpressions;
     private readonly List<string> _includePaths = new List<string>();
+    private readonly SmartContext? _smartContext;
     private bool _includeSoftDeleted;
     private bool _onlySoftDeleted;
     private int? _skipCount;
@@ -30,21 +32,33 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     private string? _schemaOverride;
 
     public SmartQuery(IDbConnection databaseConnection, IModelMetadata modelMetadata)
+        : this(databaseConnection, modelMetadata, smartContext: null)
+    {
+    }
+
+    public SmartQuery(IDbConnection databaseConnection, IModelMetadata modelMetadata, SmartContext? smartContext)
     {
         _databaseConnection = databaseConnection;
         _modelMetadata = modelMetadata;
+        _smartContext = smartContext;
         _selectBuilder = new SelectBuilder();
         _includeExpressions = new List<Expression<Func<TModel, object>>>();
         _includeSoftDeleted = false;
         _onlySoftDeleted = false;
         _skipCount = null;
         _takeCount = null;
-        IModelMetadataCache metadataCache = SmartModel.GetMetadataCache();
+        IModelMetadataCache metadataCache = smartContext?.MetadataCache ?? SmartModel.GetMetadataCache();
         _relationshipLoader = new RelationshipLoader<TModel>(modelMetadata, databaseConnection, metadataCache);
         _schemaOverride = null;
 
         InitializeSelectBuilder();
     }
+
+    private QueryExecutor CreateExecutor()
+        => new QueryExecutor(_databaseConnection, _smartContext?.AmbientTransaction);
+
+    private Rymote.Radiant.Sql.QueryCommand BuildSelect(SelectBuilder selectBuilder)
+        => _smartContext is not null ? selectBuilder.Build(_smartContext.Adapter) : selectBuilder.Build();
 
     private void InitializeSelectBuilder()
     {
@@ -77,12 +91,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
     public ISmartQuery<TModel> Where(Expression<Func<TModel, bool>> predicate)
     {
-        WhereExpressionVisitor visitor = new WhereExpressionVisitor(_modelMetadata);
-        visitor.Visit(predicate);
-
-        foreach ((string columnName, string operatorSymbol, object value) in visitor.Conditions)
-            _selectBuilder.Where(columnName, operatorSymbol, value);
-
+        LinqPredicateTranslator translator = new LinqPredicateTranslator(_modelMetadata);
+        translator.TranslateInto(predicate, _selectBuilder);
         return this;
     }
 
@@ -218,8 +228,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         if (_takeCount == null)
             _selectBuilder.Limit(1);
         
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(BuildSelect(_selectBuilder));
         
         if (_includeExpressions.Count > 0)
             await LoadRelationshipsAsync(results.ToList());
@@ -243,8 +253,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
     {
         ApplyLimitOffset();
         
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(BuildSelect(_selectBuilder));
         List<TModel> resultList = results.ToList();
         
         if (_includeExpressions.Count > 0)
@@ -268,15 +278,15 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
             countBuilder.WhereNull(deletedAtColumnName);
         }
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        return await executor.QuerySingleAsync<int>(countBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        return await executor.QuerySingleAsync<int>(BuildSelect(countBuilder));
     }
 
     public async Task<bool> AnyAsync()
     {
         _selectBuilder.Limit(1);
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(BuildSelect(_selectBuilder));
         return results.Any();
     }
 
@@ -434,8 +444,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        return await executor.QuerySingleAsync<TResult>(aggregateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        return await executor.QuerySingleAsync<TResult>(BuildSelect(aggregateBuilder));
     }
 
     public async Task<TResult?> MinAsync<TResult>(Expression<Func<TModel, TResult>> selector)
@@ -447,8 +457,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        return await executor.QuerySingleAsync<TResult>(aggregateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        return await executor.QuerySingleAsync<TResult>(BuildSelect(aggregateBuilder));
     }
 
     public async Task<decimal> SumAsync(Expression<Func<TModel, decimal>> selector)
@@ -462,8 +472,8 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        return await executor.QuerySingleAsync<decimal>(aggregateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        return await executor.QuerySingleAsync<decimal>(BuildSelect(aggregateBuilder));
     }
 
     public async Task<double> AverageAsync(Expression<Func<TModel, double>> selector)
@@ -475,16 +485,16 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
         ApplySoftDeleteFilter(aggregateBuilder);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        return await executor.QuerySingleAsync<double>(aggregateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        return await executor.QuerySingleAsync<double>(BuildSelect(aggregateBuilder));
     }
 
     public async Task<List<TResult>> ToListAsync<TResult>(Expression<Func<TModel, TResult>> selector) where TResult : class
     {
         ApplyLimitOffset();
         
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(_selectBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(BuildSelect(_selectBuilder));
         
         Func<TModel, TResult> compiledSelector = selector.Compile();
         return results.Select(compiledSelector).ToList();

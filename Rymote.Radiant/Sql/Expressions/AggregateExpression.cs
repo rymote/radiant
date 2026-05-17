@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Rymote.Radiant.Sql.Clauses.Filter;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -22,11 +23,22 @@ public sealed class AggregateExpression : ISqlExpression
     {
         stringBuilder.Append(FunctionName)
             .Append(SqlKeywords.OPEN_PAREN);
-        
-        if (IsDistinct) 
+
+        if (IsDistinct)
             stringBuilder.Append(SqlKeywords.DISTINCT).Append(SqlKeywords.SPACE);
-        
+
         InnerExpression.AppendTo(stringBuilder);
         stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw(FunctionName).WriteRaw("(");
+
+        if (IsDistinct)
+            emitter.WriteRaw("DISTINCT").WriteSpace();
+
+        emitter.Emit(InnerExpression);
+        emitter.WriteRaw(")");
     }
 }

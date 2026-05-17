@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Expressions;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -12,9 +13,14 @@ public sealed class WhereBooleanExpression : IWhereExpression
     {
         Expression = expression;
     }
-    
+
     public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
     {
         Expression.AppendTo(stringBuilder);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(Expression);
     }
 }

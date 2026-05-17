@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -72,6 +73,30 @@ public sealed class RangeExpression : ISqlExpression
 
     public static RangeExpression Overlaps(string column, string range) =>
         new(new ColumnExpression(column), RangeOperator.Overlap, new LiteralExpression(range));
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(Left);
+        emitter.WriteSpace().WriteRaw(GetDialectOperator(emitter)).WriteSpace();
+        emitter.Emit(Right);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+    }
+
+    private string GetDialectOperator(SqlEmitter emitter) => Operator switch
+    {
+        RangeOperator.Contains => emitter.Dialect.Range.ContainsElementOperator,
+        RangeOperator.ContainedBy => emitter.Dialect.Range.ContainedByOperator,
+        RangeOperator.Overlap => emitter.Dialect.Range.OverlapOperator,
+        RangeOperator.StrictlyLeft => "<<",
+        RangeOperator.StrictlyRight => ">>",
+        RangeOperator.Adjacent => emitter.Dialect.Range.AdjacentOperator,
+        RangeOperator.Union => "+",
+        RangeOperator.Intersection => "*",
+        RangeOperator.Difference => "-",
+        _ => throw new ArgumentOutOfRangeException()
+    };
 }
 
 public sealed class RangeLiteralExpression : ISqlExpression
@@ -136,4 +161,24 @@ public sealed class RangeLiteralExpression : ISqlExpression
     public static RangeLiteralExpression DateRange(DateTime? lower, DateTime? upper, bool lowerInc = true,
         bool upperInc = false) =>
         new(lower?.ToString("yyyy-MM-dd"), upper?.ToString("yyyy-MM-dd"), lowerInc, upperInc, "daterange");
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw(RangeType).WriteRaw("(");
+
+        if (LowerBound != null)
+            emitter.WritePlaceholderForValue(LowerBound);
+        else
+            emitter.WriteKeyword(emitter.Dialect.NullLiteral);
+
+        emitter.WriteRaw(", ");
+
+        if (UpperBound != null)
+            emitter.WritePlaceholderForValue(UpperBound);
+        else
+            emitter.WriteKeyword(emitter.Dialect.NullLiteral);
+
+        string boundsToken = (LowerInclusive ? "[" : "(") + (UpperInclusive ? "]" : ")");
+        emitter.WriteRaw(", ").WritePlaceholderForValue(boundsToken).WriteRaw(")");
+    }
 }

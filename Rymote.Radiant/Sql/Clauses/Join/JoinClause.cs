@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -61,5 +62,26 @@ public sealed class JoinClause : IQueryClause
             .Append(SqlKeywords.QUOTE).Append(LeftColumn).Append(SqlKeywords.QUOTE)
             .Append(SqlKeywords.EQUALS)
             .Append(SqlKeywords.QUOTE).Append(RightColumn).Append(SqlKeywords.QUOTE);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteSpace().WriteRaw(JoinType switch
+        {
+            JoinType.Inner => "INNER JOIN",
+            JoinType.Left => "LEFT JOIN",
+            JoinType.Right => "RIGHT JOIN",
+            _ => "FULL JOIN"
+        }).WriteSpace();
+
+        emitter.WriteQualifiedName(SchemaName, TableName);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteIdentifier(Alias);
+
+        emitter.WriteSpace().WriteRaw("ON").WriteSpace()
+            .WriteIdentifier(LeftColumn)
+            .WriteRaw(" = ")
+            .WriteIdentifier(RightColumn);
     }
 }

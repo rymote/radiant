@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -42,6 +43,33 @@ public sealed class FullTextExpression : ISqlExpression
         
     public static FullTextExpression TsHeadline(string config, ISqlExpression text, ISqlExpression query) =>
         new(SqlKeywords.FTS_TS_HEADLINE, new LiteralExpression(config), text, query);
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw(GetDialectFunctionName(emitter)).WriteRaw("(");
+        for (int index = 0; index < Arguments.Length; index++)
+        {
+            if (index > 0)
+                emitter.WriteRaw(", ");
+
+            emitter.Emit(Arguments[index]);
+        }
+
+        emitter.WriteRaw(")");
+    }
+
+    private string GetDialectFunctionName(SqlEmitter emitter) => FunctionName switch
+    {
+        SqlKeywords.FTS_TO_TSVECTOR => emitter.Dialect.FullText.ToTsVectorFunction,
+        SqlKeywords.FTS_TO_TSQUERY => emitter.Dialect.FullText.ToTsQueryFunction,
+        SqlKeywords.FTS_PLAINTO_TSQUERY => emitter.Dialect.FullText.PlainToTsQueryFunction,
+        SqlKeywords.FTS_PHRASETO_TSQUERY => emitter.Dialect.FullText.PhraseToTsQueryFunction,
+        SqlKeywords.FTS_WEBSEARCH_TO_TSQUERY => emitter.Dialect.FullText.WebSearchToTsQueryFunction,
+        SqlKeywords.FTS_TS_RANK => emitter.Dialect.FullText.TsRankFunction,
+        SqlKeywords.FTS_TS_RANK_CD => emitter.Dialect.FullText.TsRankCoverDensityFunction,
+        SqlKeywords.FTS_TS_HEADLINE => emitter.Dialect.FullText.TsHeadlineFunction,
+        _ => FunctionName
+    };
 }
 
 public sealed class FullTextMatchExpression : ISqlExpression
@@ -60,5 +88,12 @@ public sealed class FullTextMatchExpression : ISqlExpression
         TsVector.AppendTo(stringBuilder);
         stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.FTS_MATCH).Append(SqlKeywords.SPACE);
         TsQuery.AppendTo(stringBuilder);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(TsVector);
+        emitter.WriteSpace().WriteRaw(emitter.Dialect.FullText.MatchOperator).WriteSpace();
+        emitter.Emit(TsQuery);
     }
 }

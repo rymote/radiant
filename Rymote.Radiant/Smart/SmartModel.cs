@@ -5,9 +5,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Rymote.Radiant.Smart.Connection;
+using Rymote.Radiant.Smart.Context;
 using Rymote.Radiant.Smart.Metadata;
 using Rymote.Radiant.Smart.Query;
 using Rymote.Radiant.Smart.Repository;
+using Rymote.Radiant.Sql;
 using Rymote.Radiant.Sql.Builder;
 using Rymote.Radiant.Sql.Executor;
 using Rymote.Radiant.Sql.Expressions;
@@ -33,17 +35,25 @@ public abstract class SmartModel
     
     protected static IDbConnection GetConnection()
     {
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        if (ambientContext is not null)
+            return ambientContext.GetOpenConnectionAsync().GetAwaiter().GetResult();
+
         if (_connectionResolver == null)
-            throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() first.");
-        
+            throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() or set an ambient SmartContext first.");
+
         return _connectionResolver.GetConnection();
     }
 
     public static IModelMetadataCache GetMetadataCache()
     {
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        if (ambientContext is not null)
+            return ambientContext.MetadataCache;
+
         if (_modelMetadataCache == null)
-            throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() first.");
-            
+            throw new InvalidOperationException("SmartModel has not been configured. Call SmartModel.Configure() or set an ambient SmartContext first.");
+
         return _modelMetadataCache;
     }
 }
@@ -52,6 +62,10 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
 {
     public static ISmartQuery<TModel> Query()
     {
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        if (ambientContext is not null)
+            return ambientContext.Query<TModel>();
+
         IDbConnection connection = GetConnection();
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
         return new SmartQuery<TModel>(connection, metadata);
@@ -59,8 +73,23 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
 
     public static ISmartRawQuery Raw()
     {
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        if (ambientContext is not null)
+            return ambientContext.Raw();
+
         IDbConnection connection = GetConnection();
         return new SmartRawQuery(connection);
+    }
+
+    private static ISmartRepository<TModel> ResolveRepository()
+    {
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        if (ambientContext is not null)
+            return ambientContext.Repository<TModel>();
+
+        IDbConnection connection = GetConnection();
+        IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
+        return new SmartRepository<TModel>(connection, metadata);
     }
 
     public static async Task<List<TModel>> FromSqlAsync(string sql, object? parameters = null)
@@ -96,7 +125,11 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         }
 
         QueryExecutor executor = new QueryExecutor(connection);
-        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(selectBuilder.Build());
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        QueryCommand command = ambientContext is not null
+            ? selectBuilder.Build(ambientContext.Adapter)
+            : selectBuilder.Build();
+        IEnumerable<TModel> results = await executor.QueryAsync<TModel>(command);
         return results.FirstOrDefault();
     }
 
@@ -107,20 +140,17 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
 
     public static async Task<TModel> CreateAsync(TModel model)
     {
-        IDbConnection connection = GetConnection();
-        IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
-        ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
+        ISmartRepository<TModel> repository = ResolveRepository();
         return await repository.InsertAsync(model);
     }
 
     public async Task<TModel> SaveAsync()
     {
-        IDbConnection connection = GetConnection();
+        ISmartRepository<TModel> repository = ResolveRepository();
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
-        ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
-        
+
         object? primaryKeyValue = GetPrimaryKeyValue(metadata);
-        
+
         if (primaryKeyValue == null || IsDefaultValue(primaryKeyValue))
             return await repository.InsertAsync((TModel)this);
         else
@@ -129,10 +159,9 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
 
     public async Task<bool> DeleteAsync()
     {
-        IDbConnection connection = GetConnection();
+        ISmartRepository<TModel> repository = ResolveRepository();
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
-        ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
-        
+
         if (metadata.HasSoftDelete)
             return await repository.SoftDeleteAsync((TModel)this);
         else
@@ -141,21 +170,17 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
 
     public async Task<bool> RestoreAsync()
     {
-        IDbConnection connection = GetConnection();
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
-        
         if (!metadata.HasSoftDelete)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
-        
-        ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
+
+        ISmartRepository<TModel> repository = ResolveRepository();
         return await repository.RestoreAsync((TModel)this);
     }
 
     public async Task<bool> ForceDeleteAsync()
     {
-        IDbConnection connection = GetConnection();
-        IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
-        ISmartRepository<TModel> repository = new SmartRepository<TModel>(connection, metadata);
+        ISmartRepository<TModel> repository = ResolveRepository();
         return await repository.DeleteAsync((TModel)this);
     }
 

@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Rymote.Radiant.Smart.Metadata;
+using Rymote.Radiant.Smart.Context;
 using Rymote.Radiant.Sql.Builder;
 using Rymote.Radiant.Sql.Executor;
 using Rymote.Radiant.Sql.Expressions;
@@ -14,14 +16,41 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
 {
     private readonly IDbConnection _databaseConnection;
     private readonly IModelMetadata _modelMetadata;
+    private readonly SmartContext? _smartContext;
 
     public SmartRepository(IDbConnection databaseConnection, IModelMetadata modelMetadata)
+        : this(databaseConnection, modelMetadata, smartContext: null)
+    {
+    }
+
+    public SmartRepository(IDbConnection databaseConnection, IModelMetadata modelMetadata, SmartContext? smartContext)
     {
         _databaseConnection = databaseConnection;
         _modelMetadata = modelMetadata;
+        _smartContext = smartContext;
     }
 
-    public async Task<TModel> InsertAsync(TModel model)
+    private QueryExecutor CreateExecutor()
+        => new QueryExecutor(_databaseConnection, _smartContext?.AmbientTransaction);
+
+    private Rymote.Radiant.Sql.QueryCommand BuildCommand(InsertBuilder insertBuilder)
+        => _smartContext is not null
+            ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(insertBuilder, _smartContext.Adapter)
+            : Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(insertBuilder);
+
+    private Rymote.Radiant.Sql.QueryCommand BuildCommand(UpdateBuilder updateBuilder)
+        => _smartContext is not null
+            ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(updateBuilder, _smartContext.Adapter)
+            : Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(updateBuilder);
+
+    private Rymote.Radiant.Sql.QueryCommand BuildCommand(DeleteBuilder deleteBuilder)
+        => _smartContext is not null
+            ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(deleteBuilder, _smartContext.Adapter)
+            : Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(deleteBuilder);
+
+    public Task<TModel> InsertAsync(TModel model) => InsertAsync(model, CancellationToken.None);
+
+    public async Task<TModel> InsertAsync(TModel model, CancellationToken cancellationToken)
     {
         InsertBuilder insertBuilder = new InsertBuilder()
             .Into(_modelMetadata.TableName, _modelMetadata.SchemaName);
@@ -81,11 +110,11 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         if (returningColumns.Count > 0)
             insertBuilder.Returning(returningColumns.ToArray());
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
+        QueryExecutor executor = CreateExecutor();
 
         if (returningColumns.Count > 0)
         {
-            dynamic result = await executor.QuerySingleAsync<dynamic>(insertBuilder.Build());
+            dynamic result = await executor.QuerySingleAsync<dynamic>(BuildCommand(insertBuilder), cancellationToken);
 
             if (_modelMetadata.PrimaryKey != null && _modelMetadata.PrimaryKey.IsAutoIncrement)
             {
@@ -96,13 +125,15 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         }
         else
         {
-            await executor.ExecuteAsync(insertBuilder.Build());
+            await executor.ExecuteAsync(BuildCommand(insertBuilder), cancellationToken);
         }
 
         return model;
     }
 
-    public async Task<TModel> UpdateAsync(TModel model)
+    public Task<TModel> UpdateAsync(TModel model) => UpdateAsync(model, CancellationToken.None);
+
+    public async Task<TModel> UpdateAsync(TModel model, CancellationToken cancellationToken)
     {
         if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
@@ -166,13 +197,15 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
         updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        await executor.ExecuteAsync(updateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        await executor.ExecuteAsync(BuildCommand(updateBuilder), cancellationToken);
 
         return model;
     }
 
-    public async Task<bool> DeleteAsync(TModel model)
+    public Task<bool> DeleteAsync(TModel model) => DeleteAsync(model, CancellationToken.None);
+
+    public async Task<bool> DeleteAsync(TModel model, CancellationToken cancellationToken)
     {
         if (_modelMetadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
@@ -183,13 +216,15 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
         deleteBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        int affectedRows = await executor.ExecuteAsync(deleteBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        int affectedRows = await executor.ExecuteAsync(BuildCommand(deleteBuilder), cancellationToken);
 
         return affectedRows > 0;
     }
 
-    public async Task<bool> SoftDeleteAsync(TModel model)
+    public Task<bool> SoftDeleteAsync(TModel model) => SoftDeleteAsync(model, CancellationToken.None);
+
+    public async Task<bool> SoftDeleteAsync(TModel model, CancellationToken cancellationToken)
     {
         if (!_modelMetadata.HasSoftDelete || _modelMetadata.DeletedAtPropertyName == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
@@ -206,8 +241,8 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
         updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        int affectedRows = await executor.ExecuteAsync(updateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        int affectedRows = await executor.ExecuteAsync(BuildCommand(updateBuilder), cancellationToken);
 
         if (affectedRows > 0)
             SetPropertyValue(model, _modelMetadata.DeletedAtPropertyName, now);
@@ -215,7 +250,9 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         return affectedRows > 0;
     }
 
-    public async Task<bool> RestoreAsync(TModel model)
+    public Task<bool> RestoreAsync(TModel model) => RestoreAsync(model, CancellationToken.None);
+
+    public async Task<bool> RestoreAsync(TModel model, CancellationToken cancellationToken)
     {
         if (!_modelMetadata.HasSoftDelete || _modelMetadata.DeletedAtPropertyName == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not support soft delete");
@@ -231,13 +268,41 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
         updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
 
-        QueryExecutor executor = new QueryExecutor(_databaseConnection);
-        int affectedRows = await executor.ExecuteAsync(updateBuilder.Build());
+        QueryExecutor executor = CreateExecutor();
+        int affectedRows = await executor.ExecuteAsync(BuildCommand(updateBuilder), cancellationToken);
 
         if (affectedRows > 0)
             SetPropertyValue(model, _modelMetadata.DeletedAtPropertyName, null);
 
         return affectedRows > 0;
+    }
+
+    public async Task<TModel> UpsertAsync(TModel model, CancellationToken cancellationToken = default)
+    {
+        if (_modelMetadata.PrimaryKey is null)
+            throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
+
+        object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+        bool primaryKeyIsDefault = primaryKeyValue is null
+            || (primaryKeyValue.GetType().IsValueType && primaryKeyValue.Equals(Activator.CreateInstance(primaryKeyValue.GetType())));
+
+        return primaryKeyIsDefault
+            ? await InsertAsync(model, cancellationToken)
+            : await UpdateAsync(model, cancellationToken);
+    }
+
+    public Task<bool> ForceDeleteAsync(TModel model, CancellationToken cancellationToken = default)
+        => DeleteAsync(model, cancellationToken);
+
+    public async Task<IReadOnlyList<TModel>> InsertManyAsync(IEnumerable<TModel> models, CancellationToken cancellationToken = default)
+    {
+        List<TModel> materialised = models.ToList();
+        if (materialised.Count == 0) return materialised;
+
+        foreach (TModel model in materialised)
+            await InsertAsync(model, cancellationToken);
+
+        return materialised;
     }
 
     private void SetPropertyValue(TModel model, string propertyName, object? value)

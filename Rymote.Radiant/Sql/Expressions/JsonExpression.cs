@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -53,6 +54,27 @@ public sealed class JsonExpression : ISqlExpression
         JsonOperator.ContainsKey => SqlKeywords.JSON_CONTAINS_KEY,
         JsonOperator.Contains => SqlKeywords.JSON_CONTAINS,
         JsonOperator.ContainedBy => SqlKeywords.JSON_CONTAINED_BY,
+        _ => throw new ArgumentOutOfRangeException()
+    };
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.Emit(JsonColumn);
+        emitter.WriteSpace().WriteRaw(GetDialectOperator(emitter)).WriteSpace();
+        emitter.WritePlaceholderForValue(JsonPath);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
+    }
+
+    private string GetDialectOperator(SqlEmitter emitter) => Operator switch
+    {
+        JsonOperator.ExtractText => emitter.Dialect.Jsonb.ExtractText,
+        JsonOperator.ExtractJson => emitter.Dialect.Jsonb.ExtractJson,
+        JsonOperator.PathExists => emitter.Dialect.Jsonb.HasKeyOperator,
+        JsonOperator.ContainsKey => emitter.Dialect.Jsonb.HasAllKeysOperator,
+        JsonOperator.Contains => emitter.Dialect.Jsonb.ContainsOperator,
+        JsonOperator.ContainedBy => emitter.Dialect.Jsonb.ContainedByOperator,
         _ => throw new ArgumentOutOfRangeException()
     };
 }

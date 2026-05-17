@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 using System.Linq;
@@ -80,4 +81,28 @@ public sealed class WhereGroup : IWhereExpression
     }
 
     public bool HasConditions => expressions.Count > 0;
+
+    public void Accept(SqlEmitter emitter)
+    {
+        if (expressions.Count == 0)
+            return;
+
+        bool needsParentheses = expressions.Count > 1 && expressions.Any(valueTuple => valueTuple.Operator == WhereLogicalOperator.Or);
+
+        if (needsParentheses)
+            emitter.WriteRaw("(");
+
+        foreach ((IWhereExpression expression, WhereLogicalOperator? logicalOperator) in expressions)
+        {
+            if (logicalOperator.HasValue)
+                emitter.WriteSpace()
+                    .WriteRaw(logicalOperator == WhereLogicalOperator.And ? "AND" : "OR")
+                    .WriteSpace();
+
+            emitter.Emit(expression);
+        }
+
+        if (needsParentheses)
+            emitter.WriteRaw(")");
+    }
 }

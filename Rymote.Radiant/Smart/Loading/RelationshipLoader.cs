@@ -290,7 +290,11 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
     private async Task<List<object>> ExecuteRelatedQuery<TRelated>(QueryExecutor executor, SelectBuilder selectBuilder)
         where TRelated : class
     {
-        IEnumerable<TRelated> results = await executor.QueryAsync<TRelated>(selectBuilder.Build());
+        Rymote.Radiant.Smart.Context.SmartContext? ambientContext = Rymote.Radiant.Smart.Context.SmartContextAmbient.CurrentOrNull;
+        Rymote.Radiant.Sql.QueryCommand command = ambientContext is not null
+            ? selectBuilder.Build(ambientContext.Adapter)
+            : selectBuilder.Build();
+        IEnumerable<TRelated> results = await executor.QueryAsync<TRelated>(command);
         return results.Cast<object>().ToList();
     }
     

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -26,18 +27,35 @@ public sealed class FunctionExpression : ISqlExpression
         stringBuilder.Append(FunctionName).Append(SqlKeywords.OPEN_PAREN);
         for (int index = 0; index < Arguments.Count; index++)
         {
-            if (index > 0) 
+            if (index > 0)
                 stringBuilder.Append(SqlKeywords.COMMA);
-            
+
             Arguments[index].AppendTo(stringBuilder);
         }
-        
+
         stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
 
         if (!string.IsNullOrEmpty(Alias))
             stringBuilder
                 .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
                 .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
+    }
+
+    public void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteRaw(FunctionName).WriteRaw("(");
+        for (int index = 0; index < Arguments.Count; index++)
+        {
+            if (index > 0)
+                emitter.WriteRaw(", ");
+
+            emitter.Emit(Arguments[index]);
+        }
+
+        emitter.WriteRaw(")");
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteRaw("AS").WriteSpace().WriteIdentifier(Alias);
     }
 
     public static FunctionExpression Coalesce(params ISqlExpression[] expressions) =>

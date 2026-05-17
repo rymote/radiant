@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Parameters;
 
@@ -25,17 +26,25 @@ public class TableClause : IQueryClause
                 .Append(SchemaName)
                 .Append(SqlKeywords.QUOTE)
                 .Append(SqlKeywords.DOT);
-        
+
         stringBuilder
             .Append(SqlKeywords.QUOTE)
             .Append(TableName)
             .Append(SqlKeywords.QUOTE);
-        
-        if (!string.IsNullOrEmpty(Alias)) 
+
+        if (!string.IsNullOrEmpty(Alias))
             stringBuilder
                 .Append(SqlKeywords.SPACE)
                 .Append(SqlKeywords.QUOTE)
                 .Append(Alias)
                 .Append(SqlKeywords.QUOTE);
+    }
+
+    public virtual void Accept(SqlEmitter emitter)
+    {
+        emitter.WriteQualifiedName(SchemaName, TableName);
+
+        if (!string.IsNullOrEmpty(Alias))
+            emitter.WriteSpace().WriteIdentifier(Alias);
     }
 }
