@@ -17,6 +17,15 @@ public sealed class OnConflictClause : IQueryClause
     public string? ConstraintName { get; }
     public OnConflictAction Action { get; }
     public Dictionary<string, object>? UpdateValues { get; set; }
+
+    /// <summary>
+    /// Column names whose update value should be sourced from the dialect's EXCLUDED pseudo-table
+    /// (e.g. <c>"email" = EXCLUDED."email"</c> on PostgreSQL/SQLite). When set, takes precedence
+    /// over <see cref="UpdateValues"/> for the listed columns; columns can also appear in both
+    /// (excluded reference wins for that column).
+    /// </summary>
+    public List<string>? UpdateFromExcludedColumns { get; set; }
+
     public string? WhereCondition { get; }
     
     public OnConflictClause(string[] conflictColumns, OnConflictAction action)
@@ -63,19 +72,42 @@ public sealed class OnConflictClause : IQueryClause
             _ => throw new ArgumentException("Invalid conflict action")
         });
         
-        if (Action == OnConflictAction.DoUpdate && UpdateValues?.Count > 0)
+        if (Action == OnConflictAction.DoUpdate)
         {
-            stringBuilder.Append(SqlKeywords.SPACE);
-            bool first = true;
-            foreach ((string column, object value) in UpdateValues)
+            bool firstAssignment = true;
+
+            if (UpdateFromExcludedColumns is { Count: > 0 })
             {
-                if (!first) stringBuilder.Append(SqlKeywords.COMMA);
-                first = false;
-                
-                string paramName = parameterBag.Add(value);
-                stringBuilder.Append(SqlKeywords.QUOTE).Append(column).Append(SqlKeywords.QUOTE)
-                    .Append(SqlKeywords.EQUALS)
-                    .Append(SqlKeywords.PARAMETER_PREFIX).Append(paramName);
+                stringBuilder.Append(SqlKeywords.SPACE);
+                foreach (string columnName in UpdateFromExcludedColumns)
+                {
+                    if (!firstAssignment) stringBuilder.Append(SqlKeywords.COMMA);
+                    firstAssignment = false;
+
+                    stringBuilder
+                        .Append(SqlKeywords.QUOTE).Append(columnName).Append(SqlKeywords.QUOTE)
+                        .Append(SqlKeywords.EQUALS)
+                        .Append(SqlKeywords.EXCLUDED).Append(SqlKeywords.DOT)
+                        .Append(SqlKeywords.QUOTE).Append(columnName).Append(SqlKeywords.QUOTE);
+                }
+            }
+
+            if (UpdateValues?.Count > 0)
+            {
+                if (firstAssignment) stringBuilder.Append(SqlKeywords.SPACE);
+                foreach ((string column, object value) in UpdateValues)
+                {
+                    if (UpdateFromExcludedColumns is not null && UpdateFromExcludedColumns.Contains(column))
+                        continue;
+
+                    if (!firstAssignment) stringBuilder.Append(SqlKeywords.COMMA);
+                    firstAssignment = false;
+
+                    string paramName = parameterBag.Add(value);
+                    stringBuilder.Append(SqlKeywords.QUOTE).Append(column).Append(SqlKeywords.QUOTE)
+                        .Append(SqlKeywords.EQUALS)
+                        .Append(SqlKeywords.PARAMETER_PREFIX).Append(paramName);
+                }
             }
         }
 
@@ -124,16 +156,38 @@ public sealed class OnConflictClause : IQueryClause
                 throw new ArgumentException("Invalid conflict action");
         }
 
-        if (Action == OnConflictAction.DoUpdate && UpdateValues?.Count > 0)
+        if (Action == OnConflictAction.DoUpdate)
         {
-            emitter.WriteSpace();
-            bool first = true;
-            foreach ((string column, object value) in UpdateValues)
-            {
-                if (!first) emitter.WriteRaw(", ");
-                first = false;
+            bool firstAssignment = true;
 
-                emitter.WriteIdentifier(column).WriteRaw(" = ").WritePlaceholderForValue(value);
+            if (UpdateFromExcludedColumns is { Count: > 0 })
+            {
+                emitter.WriteSpace();
+                foreach (string columnName in UpdateFromExcludedColumns)
+                {
+                    if (!firstAssignment) emitter.WriteRaw(", ");
+                    firstAssignment = false;
+
+                    emitter.WriteIdentifier(columnName).WriteRaw(" = ")
+                        .WriteKeyword(emitter.Dialect.ExcludedTableAlias)
+                        .WriteRaw(".")
+                        .WriteIdentifier(columnName);
+                }
+            }
+
+            if (UpdateValues?.Count > 0)
+            {
+                if (firstAssignment) emitter.WriteSpace();
+                foreach ((string column, object value) in UpdateValues)
+                {
+                    if (UpdateFromExcludedColumns is not null && UpdateFromExcludedColumns.Contains(column))
+                        continue;
+
+                    if (!firstAssignment) emitter.WriteRaw(", ");
+                    firstAssignment = false;
+
+                    emitter.WriteIdentifier(column).WriteRaw(" = ").WritePlaceholderForValue(value);
+                }
             }
         }
 

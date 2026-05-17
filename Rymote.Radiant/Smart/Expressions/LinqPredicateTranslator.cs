@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using Rymote.Radiant.Smart.Configuration;
 using Rymote.Radiant.Smart.Metadata;
 using Rymote.Radiant.Sql.Builder;
 using Rymote.Radiant.Sql.Clauses.Where;
@@ -17,14 +19,62 @@ namespace Rymote.Radiant.Smart.Expressions;
 ///   - IEnumerable&lt;T&gt;.Contains (translated to IN)
 ///   - Boolean property access (treated as "column = TRUE")
 ///   - Null comparisons (rendered as IS NULL / IS NOT NULL)
+///   - Registered <see cref="ValueConverter"/>s are applied to captured values before they reach
+///     the parameter bag (so a strongly-typed ID like ContactId round-trips as its underlying
+///     string/Guid/int).
 /// </summary>
 public sealed class LinqPredicateTranslator
 {
+    private static readonly IReadOnlyDictionary<Type, ValueConverter> EmptyConverters
+        = new Dictionary<Type, ValueConverter>();
+
     private readonly IModelMetadata modelMetadata;
+    private readonly IReadOnlyDictionary<Type, ValueConverter> valueConverters;
 
     public LinqPredicateTranslator(IModelMetadata modelMetadata)
+        : this(modelMetadata, EmptyConverters)
+    {
+    }
+
+    public LinqPredicateTranslator(IModelMetadata modelMetadata, IReadOnlyDictionary<Type, ValueConverter> valueConverters)
     {
         this.modelMetadata = modelMetadata;
+        this.valueConverters = valueConverters;
+    }
+
+    private object? ApplyConverterIfPresent(object? value)
+    {
+        if (value is null) return null;
+        if (valueConverters.TryGetValue(value.GetType(), out ValueConverter? converter))
+            return converter.ToDatabase(value);
+        return value;
+    }
+
+    private object? ApplyConvertersToCollection(object? collectionValue)
+    {
+        if (collectionValue is null) return null;
+        if (collectionValue is not IEnumerable enumerable || collectionValue is string) return collectionValue;
+
+        Type? elementType = collectionValue.GetType().IsArray
+            ? collectionValue.GetType().GetElementType()
+            : collectionValue.GetType().IsGenericType
+                ? collectionValue.GetType().GetGenericArguments().FirstOrDefault()
+                : null;
+
+        if (elementType is null || !valueConverters.TryGetValue(elementType, out ValueConverter? converter))
+            return collectionValue;
+
+        List<object?> converted = new List<object?>();
+        foreach (object? element in enumerable)
+            converted.Add(element is null ? null : converter.ToDatabase(element));
+
+        if (converted.Count == 0) return Array.CreateInstance(converter.DatabaseType, 0);
+
+        Array typedArray = Array.CreateInstance(converter.DatabaseType, converted.Count);
+        for (int index = 0; index < converted.Count; index++)
+            typedArray.SetValue(converted[index], index);
+
+        return typedArray;
     }
 
     public void TranslateInto(LambdaExpression predicate, SelectBuilder selectBuilder)
@@ -141,7 +191,7 @@ public sealed class LinqPredicateTranslator
         if (unwrappedNode is BinaryExpression binaryExpression && IsComparisonOperator(binaryExpression.NodeType))
         {
             string columnName = ResolveColumnName(binaryExpression.Left);
-            object? value = EvaluateAsConstant(binaryExpression.Right);
+            object? value = ApplyConverterIfPresent(EvaluateAsConstant(binaryExpression.Right));
             string operatorSymbol = ResolveComparisonOperator(binaryExpression.NodeType, value is null);
             return (columnName, operatorSymbol, value!);
         }
@@ -183,7 +233,7 @@ public sealed class LinqPredicateTranslator
     private TranslateOperation TranslateBinaryComparison(BinaryExpression node, bool isFirst)
     {
         string columnName = ResolveColumnName(node.Left);
-        object? value = EvaluateAsConstant(node.Right);
+        object? value = ApplyConverterIfPresent(EvaluateAsConstant(node.Right));
         string operatorSymbol = ResolveComparisonOperator(node.NodeType, value is null);
 
         return TranslateOperation.ApplyAction(selectBuilder =>
@@ -243,7 +293,7 @@ public sealed class LinqPredicateTranslator
     private TranslateOperation TranslateEnumerableContains(Expression valueExpression, Expression collectionExpression, bool isFirst, bool negated)
     {
         string columnName = ResolveColumnName(valueExpression);
-        object? collectionValue = EvaluateAsConstant(collectionExpression);
+        object? collectionValue = ApplyConvertersToCollection(EvaluateAsConstant(collectionExpression));
         if (collectionValue is null)
             throw new InvalidOperationException("Cannot translate Contains on a null collection.");
 

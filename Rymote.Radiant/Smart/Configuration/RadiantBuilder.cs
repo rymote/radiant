@@ -80,6 +80,9 @@ public sealed class RadiantBuilder
                 "No database adapter configured. Call UsePostgreSql(...) or another adapter extension before AddRadiant completes.");
 
         IDatabaseAdapter adapter = adapterFactory(serviceProvider);
+
+        ValueConverterDapperRegistry.Register(valueConverters);
+
         return new SmartContextOptions(
             adapter,
             metadataCache,

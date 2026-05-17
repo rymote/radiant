@@ -201,7 +201,7 @@ radiantBuilder.AddValueConverter<OrderId, string>(
     fromDatabase: rawValue => new OrderId(rawValue));
 ```
 
-(Full converter wiring at insert/update and result-mapping time is on the v3.1 roadmap; the registration surface is stable.)
+The converter is applied automatically at every boundary: when `SmartRepository` writes property values during `InsertAsync` / `UpdateAsync` (including the primary-key `WHERE` clauses on update/delete), when `LinqPredicateTranslator` captures a value inside `Where(x => x.Id == someOrderId)`, when `SmartModel.FindAsync(someOrderId)` builds its lookup, and when Dapper materializes a result row back into a CLR property (via a generated `SqlMapper.TypeHandler<T>` registered once per converter type at `AddRadiant` time). Collection-valued predicates such as `WhereIn` walk each element through the converter as well.
 
 ## Querying
 
@@ -306,10 +306,12 @@ await user.SaveAsync();
 ### Upsert
 
 ```csharp
-await context.Repository<User>().UpsertAsync(user);  // Insert when PK is default, Update otherwise
+User hydrated = await context.Repository<User>().UpsertAsync(user);
 ```
 
-(Native `INSERT … ON CONFLICT DO UPDATE` one-trip upsert is on the v3.1 roadmap; `OnConflictClause` is already wired into `InsertBuilder` for raw-builder users.)
+On adapters that report `DatabaseCapabilities.UpsertOnConflict` (PostgreSQL and SQLite ship with this), `UpsertAsync` emits a single-trip `INSERT … ON CONFLICT (pk_col) DO UPDATE SET col = EXCLUDED.col, … RETURNING *` — the returning row hydrates the model in place (auto-generated PKs, timestamps, and any database defaults are reflected). On adapters without the capability the call falls back to the historical Insert-or-Update routing based on the primary-key value.
+
+The raw builder exposes `InsertBuilder.OnConflictDoUpdateFromExcluded(conflictColumns, columnsToUpdateFromExcluded)` for direct use — emits the correct EXCLUDED-alias case per dialect (`EXCLUDED` on PostgreSQL, `excluded` on SQLite).
 
 ### Bulk insert
 
@@ -619,15 +621,18 @@ Run with:
 dotnet test Rymote.Radiant.Tests/Rymote.Radiant.Tests.csproj
 ```
 
-## Roadmap (v3.1 and beyond)
+## Roadmap (v3.2 and beyond)
 
-- Value-converter wiring at insert/update and result-mapping time (registration surface is stable; conversion isn't yet applied automatically by `SmartRepository`).
-- Native `INSERT … ON CONFLICT DO UPDATE` upsert.
 - `Query.UpdateAsync(setterExpression)` and `Query.DeleteAsync()` bulk operations driven by a `LinqToSetTranslator`.
 - `CancellationToken` overloads across the entire `ISmartQuery<T>` surface (currently the repository surface is fully tokenised; the query surface still uses the legacy parameterless `*Async` methods).
 - Source-generated result mappers as an opt-in alternative to Dapper's reflection-based mapping.
 - Removal of the legacy `AppendTo` path once external callers migrate to `Build(adapter)`.
 - SqlServer and MySQL adapter projects.
+
+### Shipped in v3.1
+
+- ✅ Value-converter wiring at insert/update time, including primary-key WHERE clauses, FindAsync lookups, LINQ predicate captures, and Dapper result-mapping via process-global `SqlMapper.TypeHandler` registration.
+- ✅ Native `INSERT … ON CONFLICT (pk) DO UPDATE SET … FROM EXCLUDED RETURNING *` single-trip upsert on adapters that support `DatabaseCapabilities.UpsertOnConflict`, with adapter-correct `EXCLUDED` alias casing.
 
 ## License
 

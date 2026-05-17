@@ -91,7 +91,9 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
 
     public ISmartQuery<TModel> Where(Expression<Func<TModel, bool>> predicate)
     {
-        LinqPredicateTranslator translator = new LinqPredicateTranslator(_modelMetadata);
+        LinqPredicateTranslator translator = _smartContext is not null
+            ? new LinqPredicateTranslator(_modelMetadata, _smartContext.Options.ValueConverters)
+            : new LinqPredicateTranslator(_modelMetadata);
         translator.TranslateInto(predicate, _selectBuilder);
         return this;
     }

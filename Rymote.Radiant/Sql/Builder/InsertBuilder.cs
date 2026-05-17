@@ -171,7 +171,22 @@ public sealed class InsertBuilder : IQueryBuilder
         {
             UpdateValues = updateValues
         };
-        
+
+        return this;
+    }
+
+    /// <summary>
+    /// Configures <c>ON CONFLICT (conflictColumns) DO UPDATE SET col = EXCLUDED.col, ...</c>
+    /// for every column in <paramref name="columnsToUpdateFromExcluded"/>. The dialect's
+    /// EXCLUDED-table alias is used at emission time (PostgreSQL: <c>EXCLUDED</c>, SQLite: <c>excluded</c>).
+    /// </summary>
+    public InsertBuilder OnConflictDoUpdateFromExcluded(string[] conflictColumns, string[] columnsToUpdateFromExcluded)
+    {
+        OnConflictClause = new OnConflictClause(conflictColumns, OnConflictAction.DoUpdate)
+        {
+            UpdateFromExcludedColumns = new List<string>(columnsToUpdateFromExcluded)
+        };
+
         return this;
     }
     

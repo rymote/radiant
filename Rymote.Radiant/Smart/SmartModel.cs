@@ -109,14 +109,23 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
     {
         IDbConnection connection = GetConnection();
         IModelMetadata metadata = GetMetadataCache().GetMetadata<TModel>();
-        
+
         if (metadata.PrimaryKey == null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
+
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        object primaryKeyForDatabase = primaryKeyValue;
+        if (ambientContext is not null
+            && ambientContext.Options.ValueConverters.TryGetValue(primaryKeyValue.GetType(),
+                out Rymote.Radiant.Smart.Configuration.ValueConverter? converter))
+        {
+            primaryKeyForDatabase = converter.ToDatabase(primaryKeyValue) ?? primaryKeyValue;
+        }
 
         SelectBuilder selectBuilder = new SelectBuilder()
             .Select(new RawSqlExpression("*"))
             .From(metadata.TableName, metadata.SchemaName)
-            .Where(metadata.PrimaryKey.ColumnName, "=", primaryKeyValue);
+            .Where(metadata.PrimaryKey.ColumnName, "=", primaryKeyForDatabase);
 
         if (metadata.HasSoftDelete && metadata.DeletedAtPropertyName != null)
         {
@@ -125,7 +134,6 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         }
 
         QueryExecutor executor = new QueryExecutor(connection);
-        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
         QueryCommand command = ambientContext is not null
             ? selectBuilder.Build(ambientContext.Adapter)
             : selectBuilder.Build();

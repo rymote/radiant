@@ -33,6 +33,22 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
     private QueryExecutor CreateExecutor()
         => new QueryExecutor(_databaseConnection, _smartContext?.AmbientTransaction);
 
+    private object? ApplyConverterToDatabase(object? value)
+    {
+        if (value is null || _smartContext is null) return value;
+        if (_smartContext.Options.ValueConverters.TryGetValue(value.GetType(), out Rymote.Radiant.Smart.Configuration.ValueConverter? converter))
+            return converter.ToDatabase(value);
+        return value;
+    }
+
+    private object? ApplyConverterFromDatabase(object? databaseValue, Type clrPropertyType)
+    {
+        if (databaseValue is null || _smartContext is null) return databaseValue;
+        if (_smartContext.Options.ValueConverters.TryGetValue(clrPropertyType, out Rymote.Radiant.Smart.Configuration.ValueConverter? converter))
+            return converter.FromDatabase(databaseValue);
+        return databaseValue;
+    }
+
     private Rymote.Radiant.Sql.QueryCommand BuildCommand(InsertBuilder insertBuilder)
         => _smartContext is not null
             ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(insertBuilder, _smartContext.Adapter)
@@ -74,17 +90,18 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             {
                 if (property.PropertyName == _modelMetadata.CreatedAtPropertyName && value != null)
                     createdAtWasSet = true;
-                
+
                 if (property.PropertyName == _modelMetadata.UpdatedAtPropertyName && value != null)
                     updatedAtWasSet = true;
             }
 
             if (value != null)
             {
-                ISqlExpression valueExpression = CreateValueExpression(value, property.DatabaseType);
+                object convertedValue = ApplyConverterToDatabase(value) ?? value;
+                ISqlExpression valueExpression = CreateValueExpression(convertedValue, property.DatabaseType);
 
                 if (valueExpression is LiteralExpression && property.DatabaseType == null)
-                    insertBuilder.Value(property.ColumnName, value);
+                    insertBuilder.Value(property.ColumnName, convertedValue);
                 else
                     insertBuilder.ValueExpression(property.ColumnName, valueExpression);
             }
@@ -118,9 +135,10 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
 
             if (_modelMetadata.PrimaryKey != null && _modelMetadata.PrimaryKey.IsAutoIncrement)
             {
-                object primaryKeyValue = ((IDictionary<string, object>)result)[_modelMetadata.PrimaryKey.ColumnName];
-                _modelMetadata.PrimaryKey.PropertyInfo.SetValue(model,
-                    Convert.ChangeType(primaryKeyValue, _modelMetadata.PrimaryKey.PropertyType));
+                object primaryKeyDatabaseValue = ((IDictionary<string, object>)result)[_modelMetadata.PrimaryKey.ColumnName];
+                object? primaryKeyClrValue = ApplyConverterFromDatabase(primaryKeyDatabaseValue, _modelMetadata.PrimaryKey.PropertyType)
+                    ?? Convert.ChangeType(primaryKeyDatabaseValue, _modelMetadata.PrimaryKey.PropertyType);
+                _modelMetadata.PrimaryKey.PropertyInfo.SetValue(model, primaryKeyClrValue);
             }
         }
         else
@@ -155,10 +173,11 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
                 if (value != null)
                 {
                     updatedAtWasSet = true;
-                    ISqlExpression valueExpression = CreateValueExpression(value, property.DatabaseType);
+                    object convertedValue = ApplyConverterToDatabase(value) ?? value;
+                    ISqlExpression valueExpression = CreateValueExpression(convertedValue, property.DatabaseType);
 
                     if (valueExpression is LiteralExpression && property.DatabaseType == null)
-                        updateBuilder.Set(property.ColumnName, value);
+                        updateBuilder.Set(property.ColumnName, convertedValue);
                     else
                         updateBuilder.SetExpression(property.ColumnName, valueExpression);
                 }
@@ -175,10 +194,11 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
                 }
                 else
                 {
-                    ISqlExpression valueExpression = CreateValueExpression(propertyValue, property.DatabaseType);
+                    object convertedValue = ApplyConverterToDatabase(propertyValue) ?? propertyValue;
+                    ISqlExpression valueExpression = CreateValueExpression(convertedValue, property.DatabaseType);
 
                     if (valueExpression is LiteralExpression && property.DatabaseType == null)
-                        updateBuilder.Set(property.ColumnName, propertyValue);
+                        updateBuilder.Set(property.ColumnName, convertedValue);
                     else
                         updateBuilder.SetExpression(property.ColumnName, valueExpression);
                 }
@@ -195,7 +215,8 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         }
 
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyForDatabase = ApplyConverterToDatabase(primaryKeyValue);
+        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyForDatabase!);
 
         QueryExecutor executor = CreateExecutor();
         await executor.ExecuteAsync(BuildCommand(updateBuilder), cancellationToken);
@@ -214,7 +235,8 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
 
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        deleteBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyForDatabase = ApplyConverterToDatabase(primaryKeyValue);
+        deleteBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyForDatabase!);
 
         QueryExecutor executor = CreateExecutor();
         int affectedRows = await executor.ExecuteAsync(BuildCommand(deleteBuilder), cancellationToken);
@@ -239,7 +261,8 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.DeletedAtPropertyName), now);
 
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyForDatabase = ApplyConverterToDatabase(primaryKeyValue);
+        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyForDatabase!);
 
         QueryExecutor executor = CreateExecutor();
         int affectedRows = await executor.ExecuteAsync(BuildCommand(updateBuilder), cancellationToken);
@@ -266,7 +289,8 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.DeletedAtPropertyName), null);
 
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
-        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyValue!);
+        object? primaryKeyForDatabase = ApplyConverterToDatabase(primaryKeyValue);
+        updateBuilder.Where(_modelMetadata.PrimaryKey.ColumnName, "=", primaryKeyForDatabase!);
 
         QueryExecutor executor = CreateExecutor();
         int affectedRows = await executor.ExecuteAsync(BuildCommand(updateBuilder), cancellationToken);
@@ -282,13 +306,89 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         if (_modelMetadata.PrimaryKey is null)
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
 
-        object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
+        bool adapterSupportsNativeUpsert = _smartContext is not null
+            && _smartContext.Adapter.Capabilities.HasFlag(Rymote.Radiant.Adapters.DatabaseCapabilities.UpsertOnConflict);
+
+        if (!adapterSupportsNativeUpsert)
+            return await UpsertWithoutNativeOnConflictAsync(model, cancellationToken);
+
+        return await UpsertWithNativeOnConflictAsync(model, cancellationToken);
+    }
+
+    private async Task<TModel> UpsertWithoutNativeOnConflictAsync(TModel model, CancellationToken cancellationToken)
+    {
+        object? primaryKeyValue = _modelMetadata.PrimaryKey!.PropertyInfo.GetValue(model);
         bool primaryKeyIsDefault = primaryKeyValue is null
             || (primaryKeyValue.GetType().IsValueType && primaryKeyValue.Equals(Activator.CreateInstance(primaryKeyValue.GetType())));
 
         return primaryKeyIsDefault
             ? await InsertAsync(model, cancellationToken)
             : await UpdateAsync(model, cancellationToken);
+    }
+
+    private async Task<TModel> UpsertWithNativeOnConflictAsync(TModel model, CancellationToken cancellationToken)
+    {
+        InsertBuilder insertBuilder = new InsertBuilder()
+            .Into(_modelMetadata.TableName, _modelMetadata.SchemaName);
+
+        List<string> columnsToUpdateFromExcluded = new List<string>();
+        List<string> allColumnNames = new List<string>();
+        bool createdAtWasSet = false;
+        bool updatedAtWasSet = false;
+
+        foreach (IPropertyMetadata property in _modelMetadata.Properties.Values)
+        {
+            allColumnNames.Add(property.ColumnName);
+
+            object? value = property.PropertyInfo.GetValue(model);
+
+            if (_modelMetadata.HasTimestamps)
+            {
+                if (property.PropertyName == _modelMetadata.CreatedAtPropertyName && value != null)
+                    createdAtWasSet = true;
+                if (property.PropertyName == _modelMetadata.UpdatedAtPropertyName && value != null)
+                    updatedAtWasSet = true;
+            }
+
+            if (value is not null)
+            {
+                object convertedValue = ApplyConverterToDatabase(value) ?? value;
+                ISqlExpression valueExpression = CreateValueExpression(convertedValue, property.DatabaseType);
+
+                if (valueExpression is LiteralExpression && property.DatabaseType == null)
+                    insertBuilder.Value(property.ColumnName, convertedValue);
+                else
+                    insertBuilder.ValueExpression(property.ColumnName, valueExpression);
+            }
+
+            if (!property.IsPrimaryKey)
+                columnsToUpdateFromExcluded.Add(property.ColumnName);
+        }
+
+        if (_modelMetadata.HasTimestamps)
+        {
+            DateTime now = DateTime.UtcNow;
+            if (_modelMetadata.CreatedAtPropertyName != null && !createdAtWasSet)
+            {
+                insertBuilder.Value(ConvertPropertyNameToColumnName(_modelMetadata.CreatedAtPropertyName), now);
+                SetPropertyValue(model, _modelMetadata.CreatedAtPropertyName, now);
+            }
+            if (_modelMetadata.UpdatedAtPropertyName != null && !updatedAtWasSet)
+            {
+                insertBuilder.Value(ConvertPropertyNameToColumnName(_modelMetadata.UpdatedAtPropertyName), now);
+                SetPropertyValue(model, _modelMetadata.UpdatedAtPropertyName, now);
+            }
+        }
+
+        insertBuilder.OnConflictDoUpdateFromExcluded(
+            conflictColumns: new[] { _modelMetadata.PrimaryKey!.ColumnName },
+            columnsToUpdateFromExcluded: columnsToUpdateFromExcluded.ToArray());
+
+        insertBuilder.Returning(allColumnNames.ToArray());
+
+        QueryExecutor executor = CreateExecutor();
+        TModel hydratedModel = await executor.QuerySingleAsync<TModel>(BuildCommand(insertBuilder), cancellationToken);
+        return hydratedModel;
     }
 
     public Task<bool> ForceDeleteAsync(TModel model, CancellationToken cancellationToken = default)
