@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <PackageId>Rymote.Radiant.Adapters.MySql</PackageId>
+        <Authors>Rymote</Authors>
+        <Description>MySQL adapter for Rymote.Radiant.</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Dapper" Version="2.1.72" />
+        <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Rymote.Radiant\Rymote.Radiant.csproj" />
+    </ItemGroup>
+
+</Project>

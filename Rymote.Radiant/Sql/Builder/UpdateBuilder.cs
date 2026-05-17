@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Clauses.Returning;
+﻿using Rymote.Radiant.Sql.Clauses.Returning;
 using Rymote.Radiant.Sql.Clauses.Table;
 using Rymote.Radiant.Sql.Clauses.Update;
 using Rymote.Radiant.Sql.Clauses.Where;
@@ -106,6 +105,5 @@ public sealed class UpdateBuilder : IQueryBuilder
         SetClause = new SetClause(assignments);
     }
 
-    public QueryCommand Build() => QueryCompiler.Compile(this);
     public QueryCommand Build(Adapters.IDatabaseAdapter adapter) => QueryCompiler.Compile(this, adapter);
 }

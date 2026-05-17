@@ -1,6 +1,4 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
 
@@ -33,29 +31,6 @@ public sealed class JsonExpression : ISqlExpression
         Alias = alias;
         return this;
     }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        JsonColumn.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.SPACE).Append(GetOperatorSymbol()).Append(SqlKeywords.SPACE);
-        stringBuilder.Append(SqlKeywords.SINGLE_QUOTE).Append(JsonPath).Append(SqlKeywords.SINGLE_QUOTE);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-    }
-
-    private string GetOperatorSymbol() => Operator switch
-    {
-        JsonOperator.ExtractText => SqlKeywords.JSON_EXTRACT_TEXT,
-        JsonOperator.ExtractJson => SqlKeywords.JSON_EXTRACT_JSON,
-        JsonOperator.PathExists => SqlKeywords.JSON_PATH_EXISTS,
-        JsonOperator.ContainsKey => SqlKeywords.JSON_CONTAINS_KEY,
-        JsonOperator.Contains => SqlKeywords.JSON_CONTAINS,
-        JsonOperator.ContainedBy => SqlKeywords.JSON_CONTAINED_BY,
-        _ => throw new ArgumentOutOfRangeException()
-    };
 
     public void Accept(SqlEmitter emitter)
     {

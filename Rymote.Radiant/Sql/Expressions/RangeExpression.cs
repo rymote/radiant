@@ -1,6 +1,4 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
+﻿using Rymote.Radiant.Sql.Compiler;
 
 namespace Rymote.Radiant.Sql.Expressions;
 
@@ -38,32 +36,6 @@ public sealed class RangeExpression : ISqlExpression
         Alias = alias;
         return this;
     }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        Left.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.SPACE).Append(GetOperatorString()).Append(SqlKeywords.SPACE);
-        Right.AppendTo(stringBuilder);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-    }
-
-    private string GetOperatorString() => Operator switch
-    {
-        RangeOperator.Contains => SqlKeywords.RANGE_CONTAINS_ELEMENT,
-        RangeOperator.ContainedBy => SqlKeywords.RANGE_CONTAINED_BY,
-        RangeOperator.Overlap => SqlKeywords.RANGE_OVERLAP,
-        RangeOperator.StrictlyLeft => SqlKeywords.RANGE_LEFT_OF,
-        RangeOperator.StrictlyRight => SqlKeywords.RANGE_RIGHT_OF,
-        RangeOperator.Adjacent => SqlKeywords.RANGE_ADJACENT,
-        RangeOperator.Union => SqlKeywords.RANGE_UNION,
-        RangeOperator.Intersection => SqlKeywords.RANGE_INTERSECTION,
-        RangeOperator.Difference => SqlKeywords.RANGE_DIFFERENCE,
-        _ => throw new ArgumentOutOfRangeException()
-    };
 
     public static RangeExpression Contains(string column, object value) =>
         new(new ColumnExpression(column), RangeOperator.Contains, new LiteralExpression(value));
@@ -115,30 +87,6 @@ public sealed class RangeLiteralExpression : ISqlExpression
         LowerInclusive = lowerInclusive;
         UpperInclusive = upperInclusive;
         RangeType = rangeType;
-    }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(RangeType).Append(SqlKeywords.OPEN_PAREN);
-
-        if (LowerBound != null)
-            stringBuilder.Append(LowerBound);
-        else
-            stringBuilder.Append(SqlKeywords.NULL);
-
-        stringBuilder.Append(SqlKeywords.COMMA);
-
-        if (UpperBound != null)
-            stringBuilder.Append(UpperBound);
-        else
-            stringBuilder.Append(SqlKeywords.NULL);
-
-        stringBuilder.Append(SqlKeywords.COMMA)
-            .Append(SqlKeywords.SINGLE_QUOTE)
-            .Append(LowerInclusive ? SqlKeywords.OPEN_BRACKET : SqlKeywords.OPEN_PAREN)
-            .Append(UpperInclusive ? SqlKeywords.CLOSE_BRACKET : SqlKeywords.CLOSE_PAREN)
-            .Append(SqlKeywords.SINGLE_QUOTE)
-            .Append(SqlKeywords.CLOSE_PAREN);
     }
 
     public static RangeLiteralExpression

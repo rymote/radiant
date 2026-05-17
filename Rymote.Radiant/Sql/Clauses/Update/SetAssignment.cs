@@ -1,4 +1,3 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Compiler;
 
 namespace Rymote.Radiant.Sql.Clauses.Update;
@@ -11,8 +10,6 @@ public abstract class SetAssignment
     {
         ColumnName = columnName;
     }
-
-    public abstract void AppendValueTo(StringBuilder stringBuilder);
 
     public abstract void AcceptValue(SqlEmitter emitter);
 }

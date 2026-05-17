@@ -56,6 +56,5 @@ public sealed class DeleteBuilder : IQueryBuilder
         return this;
     }
 
-    public QueryCommand Build() => QueryCompiler.Compile(this);
     public QueryCommand Build(Adapters.IDatabaseAdapter adapter) => QueryCompiler.Compile(this, adapter);
 }

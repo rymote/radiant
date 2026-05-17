@@ -1,8 +1,5 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Builder;
 using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
-using Rymote.Radiant.Sql.Parameters;
 
 namespace Rymote.Radiant.Sql.Expressions;
 
@@ -17,36 +14,9 @@ public sealed class SubqueryExpression : ISqlExpression
         Alias = alias;
     }
 
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(Query.Build()).Append(SqlKeywords.CLOSE_PAREN);
-        
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-    }
-
-    public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
-    {
-        QueryCommand queryCommand = Query.Build();
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN).Append(queryCommand).Append(SqlKeywords.CLOSE_PAREN);
-        
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-
-        foreach (string parameterName in queryCommand.Parameters.ParameterNames)
-        {
-            object? value = queryCommand.Parameters.Get<object>(parameterName);
-            parameterBag.Add(value);
-        }
-    }
-
     public void Accept(SqlEmitter emitter)
     {
-        QueryCommand queryCommand = Query.Build();
+        QueryCommand queryCommand = Query.Build(emitter.Adapter);
         emitter.WriteRaw("(").WriteRaw(queryCommand.SqlText).WriteRaw(")");
 
         if (!string.IsNullOrEmpty(Alias))

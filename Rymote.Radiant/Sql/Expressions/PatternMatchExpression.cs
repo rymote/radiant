@@ -1,6 +1,4 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
+﻿using Rymote.Radiant.Sql.Compiler;
 
 namespace Rymote.Radiant.Sql.Expressions;
 
@@ -37,33 +35,6 @@ public sealed class PatternMatchExpression : ISqlExpression
         Alias = alias;
         return this;
     }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        Column.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.SPACE).Append(GetOperatorString()).Append(SqlKeywords.SPACE);
-        Pattern.AppendTo(stringBuilder);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-    }
-
-    private string GetOperatorString() => Operator switch
-    {
-        PatternMatchOperator.Like => SqlKeywords.LIKE,
-        PatternMatchOperator.ILike => SqlKeywords.ILIKE,
-        PatternMatchOperator.NotLike => SqlKeywords.NOT + SqlKeywords.SPACE + SqlKeywords.LIKE,
-        PatternMatchOperator.NotILike => SqlKeywords.NOT + SqlKeywords.SPACE + SqlKeywords.ILIKE,
-        PatternMatchOperator.SimilarTo => SqlKeywords.SIMILAR_TO,
-        PatternMatchOperator.NotSimilarTo => SqlKeywords.NOT + SqlKeywords.SPACE + SqlKeywords.SIMILAR_TO,
-        PatternMatchOperator.RegexMatch => SqlKeywords.REGEXP_MATCH_OP,
-        PatternMatchOperator.RegexIMatch => SqlKeywords.REGEXP_IMATCH_OP,
-        PatternMatchOperator.NotRegexMatch => SqlKeywords.NOT_REGEXP_MATCH,
-        PatternMatchOperator.NotRegexIMatch => SqlKeywords.NOT_REGEXP_IMATCH,
-        _ => throw new ArgumentOutOfRangeException()
-    };
 
     public void Accept(SqlEmitter emitter)
     {

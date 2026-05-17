@@ -1,4 +1,3 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Expressions;
 
@@ -11,11 +10,6 @@ public sealed class SetExpressionAssignment : SetAssignment
     public SetExpressionAssignment(string columnName, ISqlExpression expression) : base(columnName)
     {
         Expression = expression;
-    }
-
-    public override void AppendValueTo(StringBuilder stringBuilder)
-    {
-        Expression.AppendTo(stringBuilder);
     }
 
     public override void AcceptValue(SqlEmitter emitter)

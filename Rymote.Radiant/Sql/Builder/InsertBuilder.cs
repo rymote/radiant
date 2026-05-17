@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using System.Text;
 using Rymote.Radiant.Sql.Clauses.Insert;
 using Rymote.Radiant.Sql.Clauses.Returning;
 using Rymote.Radiant.Sql.Clauses.Table;
@@ -240,6 +239,5 @@ public sealed class InsertBuilder : IQueryBuilder
         }
     }
 
-    public QueryCommand Build() => QueryCompiler.Compile(this);
     public QueryCommand Build(Adapters.IDatabaseAdapter adapter) => QueryCompiler.Compile(this, adapter);
 }

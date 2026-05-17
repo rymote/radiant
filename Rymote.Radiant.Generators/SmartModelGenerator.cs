@@ -22,9 +22,15 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(smartModelSymbols, static (sourceProductionContext, classSymbol) =>
         {
-            string generatedCode = GenerateHelperMethods(classSymbol);
-            string fileName = $"{classSymbol.Name}.SmartHelpers.g.cs";
-            sourceProductionContext.AddSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
+            string helpersCode = GenerateHelperMethods(classSymbol);
+            sourceProductionContext.AddSource(
+                $"{classSymbol.Name}.SmartHelpers.g.cs",
+                SourceText.From(helpersCode, Encoding.UTF8));
+
+            string mapperCode = GenerateResultMapper(classSymbol);
+            sourceProductionContext.AddSource(
+                $"{classSymbol.Name}.RadiantMapper.g.cs",
+                SourceText.From(mapperCode, Encoding.UTF8));
         });
     }
 
@@ -38,8 +44,10 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
         ClassDeclarationSyntax classDeclaration = (ClassDeclarationSyntax)syntaxContext.Node;
         INamedTypeSymbol? classSymbol = syntaxContext.SemanticModel.GetDeclaredSymbol(classDeclaration, cancellationToken) as INamedTypeSymbol;
 
-        if (classSymbol == null)
-            return null;
+        if (classSymbol == null) return null;
+        if (classSymbol.IsAbstract) return null;
+        if (classSymbol.IsGenericType && classSymbol.TypeArguments.Any(typeArgument => typeArgument is ITypeParameterSymbol)) return null;
+        if (classSymbol.Name == "SmartModel") return null;
 
         return InheritsFromSmartModel(classSymbol) ? classSymbol : null;
     }
@@ -364,5 +372,115 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
     private static string GetFullTypeName(ITypeSymbol type)
     {
         return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+    }
+
+    private static string GenerateResultMapper(INamedTypeSymbol classSymbol)
+    {
+        string namespaceName = classSymbol.ContainingNamespace.ToDisplayString();
+        string className = classSymbol.Name;
+        string fullyQualifiedClassName = $"global::{namespaceName}.{className}";
+
+        ImmutableArray<IPropertySymbol> properties = classSymbol.GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(property => property.DeclaredAccessibility == Accessibility.Public)
+            .Where(property => !IsRelationshipProperty(property))
+            .Where(property => property.SetMethod is not null)
+            .ToImmutableArray();
+
+        StringBuilder sourceBuilder = new StringBuilder();
+        sourceBuilder.AppendLine("#nullable enable");
+        sourceBuilder.AppendLine();
+        sourceBuilder.AppendLine($"namespace Rymote.Radiant.GeneratedMappers;");
+        sourceBuilder.AppendLine();
+        sourceBuilder.AppendLine("/// <summary>");
+        sourceBuilder.AppendLine($"/// Source-generated DbDataReader -> {fullyQualifiedClassName} mapper. Registered with");
+        sourceBuilder.AppendLine($"/// <c>Rymote.Radiant.Smart.Mapping.SourceGeneratedMapperRegistry</c> at module load time via");
+        sourceBuilder.AppendLine($"/// the <c>[ModuleInitializer]</c> attribute below; from then on, every query that returns");
+        sourceBuilder.AppendLine($"/// <c>{className}</c> goes through this mapper instead of Dapper's reflection-based mapping.");
+        sourceBuilder.AppendLine("/// </summary>");
+        sourceBuilder.AppendLine($"internal static class {className}RadiantResultMapper");
+        sourceBuilder.AppendLine("{");
+        sourceBuilder.AppendLine("    [global::System.Runtime.CompilerServices.ModuleInitializer]");
+        sourceBuilder.AppendLine("    internal static void RegisterWithRadiant()");
+        sourceBuilder.AppendLine("    {");
+        sourceBuilder.AppendLine($"        global::Rymote.Radiant.Smart.Mapping.SourceGeneratedMapperRegistry.Register<{fullyQualifiedClassName}>(MapFromReader);");
+        sourceBuilder.AppendLine("    }");
+        sourceBuilder.AppendLine();
+        sourceBuilder.AppendLine($"    public static {fullyQualifiedClassName} MapFromReader(global::System.Data.Common.DbDataReader reader)");
+        sourceBuilder.AppendLine("    {");
+        sourceBuilder.AppendLine($"        {fullyQualifiedClassName} result = new {fullyQualifiedClassName}();");
+        sourceBuilder.AppendLine();
+        sourceBuilder.AppendLine("        for (int columnIndex = 0; columnIndex < reader.FieldCount; columnIndex++)");
+        sourceBuilder.AppendLine("        {");
+        sourceBuilder.AppendLine("            string columnName = reader.GetName(columnIndex);");
+        sourceBuilder.AppendLine("            bool columnIsNull = reader.IsDBNull(columnIndex);");
+        sourceBuilder.AppendLine("            switch (columnName)");
+        sourceBuilder.AppendLine("            {");
+
+        foreach (IPropertySymbol property in properties)
+        {
+            string propertyName = property.Name;
+            string columnName = GetColumnName(property);
+            string columnNameAlias = propertyName;
+
+            sourceBuilder.AppendLine($"                case \"{columnName}\":");
+            if (columnName != columnNameAlias)
+                sourceBuilder.AppendLine($"                case \"{columnNameAlias}\":");
+
+            string readerExpression = BuildReaderExpressionForProperty(property);
+            string defaultExpression = BuildDefaultExpressionForProperty(property);
+
+            if (IsNullableType(property.Type) || !property.Type.IsValueType)
+            {
+                sourceBuilder.AppendLine($"                    result.{propertyName} = columnIsNull ? {defaultExpression} : {readerExpression};");
+            }
+            else
+            {
+                sourceBuilder.AppendLine($"                    if (!columnIsNull) result.{propertyName} = {readerExpression};");
+            }
+
+            sourceBuilder.AppendLine("                    break;");
+        }
+
+        sourceBuilder.AppendLine("            }");
+        sourceBuilder.AppendLine("        }");
+        sourceBuilder.AppendLine();
+        sourceBuilder.AppendLine("        return result;");
+        sourceBuilder.AppendLine("    }");
+        sourceBuilder.AppendLine("}");
+
+        return sourceBuilder.ToString();
+    }
+
+    private static string BuildReaderExpressionForProperty(IPropertySymbol property)
+    {
+        ITypeSymbol underlyingType = GetUnderlyingType(property.Type);
+        string fullyQualifiedType = GetFullTypeName(underlyingType);
+
+        return underlyingType.SpecialType switch
+        {
+            SpecialType.System_Boolean => "reader.GetBoolean(columnIndex)",
+            SpecialType.System_Byte    => "reader.GetByte(columnIndex)",
+            SpecialType.System_Char    => "reader.GetChar(columnIndex)",
+            SpecialType.System_Int16   => "reader.GetInt16(columnIndex)",
+            SpecialType.System_Int32   => "reader.GetInt32(columnIndex)",
+            SpecialType.System_Int64   => "reader.GetInt64(columnIndex)",
+            SpecialType.System_Single  => "reader.GetFloat(columnIndex)",
+            SpecialType.System_Double  => "reader.GetDouble(columnIndex)",
+            SpecialType.System_Decimal => "reader.GetDecimal(columnIndex)",
+            SpecialType.System_String  => "reader.GetString(columnIndex)",
+            SpecialType.System_DateTime => "reader.GetDateTime(columnIndex)",
+            _ when underlyingType.Name == "Guid" => "reader.GetGuid(columnIndex)",
+            _ => $"reader.GetFieldValue<{fullyQualifiedType}>(columnIndex)"
+        };
+    }
+
+    private static string BuildDefaultExpressionForProperty(IPropertySymbol property)
+    {
+        ITypeSymbol underlyingType = GetUnderlyingType(property.Type);
+        if (underlyingType.SpecialType == SpecialType.System_String)
+            return IsNullableType(property.Type) ? "null" : "string.Empty";
+
+        return $"default({GetFullTypeName(property.Type)})";
     }
 }

@@ -6,6 +6,8 @@ using System.Linq;
 using System.IO;
 using Npgsql;
 using Dapper;
+using Rymote.Radiant.Adapters;
+using Rymote.Radiant.Adapters.PostgreSql;
 using Rymote.Radiant.Smart;
 using Rymote.Radiant.Smart.Configuration;
 using Rymote.Radiant.Sql.Builder;
@@ -18,18 +20,24 @@ namespace Playground;
 
 class Program
 {
+    private static IDatabaseAdapter DatabaseAdapter { get; set; } = null!;
+
     static async Task Main(string[] args)
     {
         string connectionString = "Host=localhost;Database=test;Username=postgres;Password=postgres";
-        
+
         // Setup database
         await SetupDatabaseAsync(connectionString);
-        
+
         // Configure SmartModel
         using IDbConnection connection = new NpgsqlConnection(connectionString);
+        NpgsqlDataSourceBuilder dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        DatabaseAdapter = new PostgreSqlAdapter(dataSourceBuilder.Build());
+
         SmartModelConfiguration configuration = new SmartModelConfiguration();
-        
+
         configuration
+            .UseAdapter(DatabaseAdapter)
             .UseConnection(connection)
             .RegisterModel<User>()
             .RegisterModel<Address>()
@@ -38,8 +46,6 @@ class Program
             .RegisterModel<Order>()
             .RegisterModel<OrderItem>()
             .Build();
-            
-        SmartModel.Configure(connection, configuration.GetModelMetadataCache());
         
         // Run tests
         await RunTestsAsync(connection);
@@ -312,7 +318,7 @@ CREATE INDEX idx_orders_user_id ON orders(user_id) WHERE deleted_at IS NULL;
             .Limit(10);
             
         QueryExecutor executor = new QueryExecutor(connection);
-        dynamic[] users = (await executor.QueryAsync<dynamic>(simpleQuery.Build())).ToArray();
+        dynamic[] users = (await executor.QueryAsync<dynamic>(simpleQuery.Build(DatabaseAdapter))).ToArray();
         Console.WriteLine($"   Found {users.Length} users");
         
         // Test with aggregate
@@ -320,7 +326,7 @@ CREATE INDEX idx_orders_user_id ON orders(user_id) WHERE deleted_at IS NULL;
             .Select(new FunctionExpression("COUNT", new RawSqlExpression("*")).As("total"))
             .From("orders");
             
-        dynamic countResult = await executor.QuerySingleAsync<dynamic>(countQuery.Build());
+        dynamic countResult = await executor.QuerySingleAsync<dynamic>(countQuery.Build(DatabaseAdapter));
         Console.WriteLine($"   Total orders: {countResult.total}");
         
         // Test 15: Category hierarchy with CTE

@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
+using Rymote.Radiant.Adapters;
 using Rymote.Radiant.Smart.Connection;
 using Rymote.Radiant.Smart.Context;
 using Rymote.Radiant.Smart.Metadata;
@@ -20,17 +21,48 @@ public abstract class SmartModel
 {
     private static IConnectionResolver? _connectionResolver;
     private static IModelMetadataCache? _modelMetadataCache;
+    private static IDatabaseAdapter? _databaseAdapter;
 
-    public static void Configure(IDbConnection connection, IModelMetadataCache cache)
+    public static void Configure(IDatabaseAdapter adapter, IDbConnection connection, IModelMetadataCache cache)
     {
+        _databaseAdapter = adapter;
         _connectionResolver = new StaticConnectionResolver(connection);
         _modelMetadataCache = cache;
     }
 
-    public static void Configure(IConnectionResolver resolver, IModelMetadataCache cache)
+    public static void Configure(IDatabaseAdapter adapter, IConnectionResolver resolver, IModelMetadataCache cache)
     {
+        _databaseAdapter = adapter;
         _connectionResolver = resolver;
         _modelMetadataCache = cache;
+    }
+
+    public static void Configure(IDbConnection connection, IModelMetadataCache cache)
+    {
+        throw new InvalidOperationException(
+            "Configure(connection, cache) is no longer supported. " +
+            "Call Configure(adapter, connection, cache) and supply an IDatabaseAdapter explicitly.");
+    }
+
+    public static void Configure(IConnectionResolver resolver, IModelMetadataCache cache)
+    {
+        throw new InvalidOperationException(
+            "Configure(resolver, cache) is no longer supported. " +
+            "Call Configure(adapter, resolver, cache) and supply an IDatabaseAdapter explicitly.");
+    }
+
+    internal static IDatabaseAdapter GetDatabaseAdapter()
+    {
+        SmartContext? ambientContext = SmartContextAmbient.CurrentOrNull;
+        if (ambientContext is not null)
+            return ambientContext.Adapter;
+
+        if (_databaseAdapter == null)
+            throw new InvalidOperationException(
+                "SmartModel has not been configured with an IDatabaseAdapter. " +
+                "Call SmartModel.Configure(adapter, connection, cache) or set an ambient SmartContext first.");
+
+        return _databaseAdapter;
     }
     
     protected static IDbConnection GetConnection()
@@ -134,9 +166,8 @@ public abstract class SmartModel<TModel> : SmartModel where TModel : SmartModel<
         }
 
         QueryExecutor executor = new QueryExecutor(connection);
-        QueryCommand command = ambientContext is not null
-            ? selectBuilder.Build(ambientContext.Adapter)
-            : selectBuilder.Build();
+        IDatabaseAdapter adapter = ambientContext?.Adapter ?? GetDatabaseAdapter();
+        QueryCommand command = selectBuilder.Build(adapter);
         IEnumerable<TModel> results = await executor.QueryAsync<TModel>(command);
         return results.FirstOrDefault();
     }

@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Compiler;
+﻿using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -31,20 +30,6 @@ public sealed class MathExpression : ISqlExpression
     {
         Alias = alias;
         return this;
-    }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(SqlKeywords.OPEN_PAREN);
-        Left.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.SPACE).Append(GetOperatorSymbol()).Append(SqlKeywords.SPACE);
-        Right.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
     }
 
     private string GetOperatorSymbol() => Operator switch

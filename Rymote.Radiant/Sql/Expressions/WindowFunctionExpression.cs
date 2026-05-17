@@ -1,8 +1,6 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Clauses.OrderBy;
+﻿using Rymote.Radiant.Sql.Clauses.OrderBy;
 using Rymote.Radiant.Sql.Clauses.WindowFunction;
 using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
 
@@ -66,69 +64,6 @@ public sealed class WindowFunctionExpression : ISqlExpression
         return this;
     }
     
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(FunctionName).Append(SqlKeywords.OPEN_PAREN);
-        for (int index = 0; index < Arguments.Count; index++)
-        {
-            if (index > 0) 
-                stringBuilder.Append(SqlKeywords.COMMA);
-            
-            Arguments[index].AppendTo(stringBuilder);
-        }
-        
-        stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
-        
-        if (respectNulls)
-            stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.RESPECT_NULLS);
-        else if (ignoreNulls)
-            stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.IGNORE_NULLS);
-        
-        stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.OVER).Append(SqlKeywords.SPACE).Append(SqlKeywords.OPEN_PAREN);
-
-        if (partitionByColumns.Count > 0)
-        {
-            stringBuilder.Append(SqlKeywords.PARTITION_BY).Append(SqlKeywords.SPACE);
-            for (int index = 0; index < partitionByColumns.Count; index++)
-            {
-                if (index > 0) stringBuilder.Append(SqlKeywords.COMMA);
-                stringBuilder.Append(SqlKeywords.QUOTE).Append(partitionByColumns[index]).Append(SqlKeywords.QUOTE);
-            }
-        }
-
-        if (orderByColumns.Count > 0)
-        {
-            if (partitionByColumns.Count > 0) stringBuilder.Append(SqlKeywords.SPACE);
-            stringBuilder.Append(SqlKeywords.ORDER_BY).Append(SqlKeywords.SPACE);
-            
-            for (int index = 0; index < orderByColumns.Count; index++)
-            {
-                if (index > 0) 
-                    stringBuilder.Append(SqlKeywords.COMMA);
-                
-                (string column, SortDirection direction) = orderByColumns[index];
-                stringBuilder.Append(SqlKeywords.QUOTE).Append(column).Append(SqlKeywords.QUOTE);
-                stringBuilder.Append(direction == SortDirection.Descending ? 
-                    SqlKeywords.SPACE + SqlKeywords.DESC : 
-                    SqlKeywords.SPACE + SqlKeywords.ASC);
-            }
-        }
-
-        if (frameClause != null)
-        {
-            if (partitionByColumns.Count > 0 || orderByColumns.Count > 0) 
-                stringBuilder.Append(SqlKeywords.SPACE);
-            frameClause.AppendTo(stringBuilder);
-        }
-
-        stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-    }
-
     public void Accept(SqlEmitter emitter)
     {
         emitter.WriteRaw(FunctionName).WriteRaw("(");

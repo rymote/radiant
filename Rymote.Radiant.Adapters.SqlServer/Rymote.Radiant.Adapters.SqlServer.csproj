@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <PackageId>Rymote.Radiant.Adapters.SqlServer</PackageId>
+        <Authors>Rymote</Authors>
+        <Description>Microsoft SQL Server adapter for Rymote.Radiant.</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Dapper" Version="2.1.72" />
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Rymote.Radiant\Rymote.Radiant.csproj" />
+    </ItemGroup>
+
+</Project>

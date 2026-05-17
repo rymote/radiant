@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Dapper;
 using Rymote.Radiant.Adapters;
@@ -9,17 +8,8 @@ public sealed class ParameterBag
 {
     private readonly DynamicParameters dynamicParameters = new();
     private readonly List<QueryParameter> orderedParameters = new();
-    private readonly IParameterFormatter? parameterFormatter;
+    private readonly IParameterFormatter parameterFormatter;
     private int parameterIndex;
-
-    /// <summary>
-    /// Legacy constructor — no adapter context. Used during migration; the new emitter path
-    /// always supplies an <see cref="IParameterFormatter"/>.
-    /// </summary>
-    public ParameterBag()
-    {
-        parameterFormatter = null;
-    }
 
     public ParameterBag(IParameterFormatter parameterFormatter)
     {
@@ -28,13 +18,11 @@ public sealed class ParameterBag
 
     /// <summary>
     /// Adds a value and returns its parameter name (without any placeholder prefix).
-    /// Legacy callers prefix the name with "@" themselves; the new emitter path uses
-    /// <see cref="AddPlaceholder"/> which returns the dialect-correct placeholder string.
     /// </summary>
     public string Add(object? value)
     {
         int ordinal = parameterIndex++;
-        string parameterName = parameterFormatter?.FormatParameterName(ordinal) ?? ("p" + ordinal);
+        string parameterName = parameterFormatter.FormatParameterName(ordinal);
         dynamicParameters.Add(parameterName, value);
         orderedParameters.Add(new QueryParameter(parameterName, value));
         return parameterName;
@@ -47,10 +35,10 @@ public sealed class ParameterBag
     public string AddPlaceholder(object? value)
     {
         int ordinal = parameterIndex++;
-        string parameterName = parameterFormatter?.FormatParameterName(ordinal) ?? ("p" + ordinal);
+        string parameterName = parameterFormatter.FormatParameterName(ordinal);
         dynamicParameters.Add(parameterName, value);
         orderedParameters.Add(new QueryParameter(parameterName, value));
-        return parameterFormatter?.FormatPlaceholder(ordinal) ?? ("@" + parameterName);
+        return parameterFormatter.FormatPlaceholder(ordinal);
     }
 
     public DynamicParameters ToDynamicParameters() => dynamicParameters;

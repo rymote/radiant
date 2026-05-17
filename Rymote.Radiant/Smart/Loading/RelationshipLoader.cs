@@ -291,9 +291,8 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
         where TRelated : class
     {
         Rymote.Radiant.Smart.Context.SmartContext? ambientContext = Rymote.Radiant.Smart.Context.SmartContextAmbient.CurrentOrNull;
-        Rymote.Radiant.Sql.QueryCommand command = ambientContext is not null
-            ? selectBuilder.Build(ambientContext.Adapter)
-            : selectBuilder.Build();
+        Rymote.Radiant.Adapters.IDatabaseAdapter adapter = ambientContext?.Adapter ?? SmartModel.GetDatabaseAdapter();
+        Rymote.Radiant.Sql.QueryCommand command = selectBuilder.Build(adapter);
         IEnumerable<TRelated> results = await executor.QueryAsync<TRelated>(command);
         return results.Cast<object>().ToList();
     }

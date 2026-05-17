@@ -17,6 +17,9 @@
         <ProjectReference Include="..\Rymote.Radiant\Rymote.Radiant.csproj" />
         <ProjectReference Include="..\Rymote.Radiant.Adapters.PostgreSql\Rymote.Radiant.Adapters.PostgreSql.csproj" />
         <ProjectReference Include="..\Rymote.Radiant.Adapters.Sqlite\Rymote.Radiant.Adapters.Sqlite.csproj" />
+        <ProjectReference Include="..\Rymote.Radiant.Adapters.SqlServer\Rymote.Radiant.Adapters.SqlServer.csproj" />
+        <ProjectReference Include="..\Rymote.Radiant.Adapters.MySql\Rymote.Radiant.Adapters.MySql.csproj" />
+        <ProjectReference Include="..\Rymote.Radiant.Generators\Rymote.Radiant.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
 </Project>

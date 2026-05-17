@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Compiler;
+﻿using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -13,20 +12,6 @@ public sealed class FullTextExpression : ISqlExpression
     {
         FunctionName = functionName;
         Arguments = arguments;
-    }
-    
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(FunctionName).Append(SqlKeywords.OPEN_PAREN);
-        for (int index = 0; index < Arguments.Length; index++)
-        {
-            if (index > 0) 
-                stringBuilder.Append(SqlKeywords.COMMA);
-            
-            Arguments[index].AppendTo(stringBuilder);
-        }
-        
-        stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
     }
     
     public static FullTextExpression ToTsVector(string config, ISqlExpression text) =>
@@ -83,13 +68,6 @@ public sealed class FullTextMatchExpression : ISqlExpression
         TsQuery = tsQuery;
     }
     
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        TsVector.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.SPACE).Append(SqlKeywords.FTS_MATCH).Append(SqlKeywords.SPACE);
-        TsQuery.AppendTo(stringBuilder);
-    }
-
     public void Accept(SqlEmitter emitter)
     {
         emitter.Emit(TsVector);

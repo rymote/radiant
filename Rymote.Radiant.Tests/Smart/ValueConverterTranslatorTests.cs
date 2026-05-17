@@ -1,4 +1,7 @@
 using System.Collections.Generic;
+using Npgsql;
+using Rymote.Radiant.Adapters;
+using Rymote.Radiant.Adapters.PostgreSql;
 using Rymote.Radiant.Smart.Configuration;
 using Rymote.Radiant.Smart.Expressions;
 using Rymote.Radiant.Smart.Metadata;
@@ -17,6 +20,13 @@ namespace Rymote.Radiant.Tests.Smart;
 public sealed class ValueConverterTranslatorTests
 {
     private static IModelMetadata TestUserMetadata { get; } = LoadMetadata();
+    private static IDatabaseAdapter PostgresAdapter { get; } = BuildOfflinePostgresAdapter();
+
+    private static IDatabaseAdapter BuildOfflinePostgresAdapter()
+    {
+        NpgsqlDataSourceBuilder dataSourceBuilder = new NpgsqlDataSourceBuilder("Host=offline;Database=offline");
+        return new PostgreSqlAdapter(dataSourceBuilder.Build());
+    }
 
     private static Dictionary<System.Type, ValueConverter> Converters { get; } = new()
     {
@@ -50,7 +60,7 @@ public sealed class ValueConverterTranslatorTests
             (System.Linq.Expressions.Expression<System.Func<TestUser, bool>>)(user => user.Username == targetId.Value),
             selectBuilder);
 
-        Rymote.Radiant.Sql.QueryCommand compiled = selectBuilder.Build();
+        Rymote.Radiant.Sql.QueryCommand compiled = selectBuilder.Build(PostgresAdapter);
         Assert.Contains("\"username\" = @p0", compiled.SqlText);
         Assert.Single(compiled.OrderedParameters);
         Assert.Equal("01HMEXAMPLE", compiled.OrderedParameters[0].Value);
@@ -70,7 +80,7 @@ public sealed class ValueConverterTranslatorTests
             (System.Linq.Expressions.Expression<System.Func<TestUser, bool>>)(user => user.Id == targetId),
             selectBuilder);
 
-        Rymote.Radiant.Sql.QueryCommand compiled = selectBuilder.Build();
+        Rymote.Radiant.Sql.QueryCommand compiled = selectBuilder.Build(PostgresAdapter);
         Assert.Equal(42, compiled.OrderedParameters[0].Value);
     }
 }

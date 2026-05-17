@@ -1,8 +1,4 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
-using Rymote.Radiant.Sql.Parameters;
-using System.Linq;
 using Rymote.Radiant.Sql.Expressions;
 
 namespace Rymote.Radiant.Sql.Clauses.Where;
@@ -12,6 +8,23 @@ public sealed class WhereGroup : IWhereExpression
     private readonly List<(IWhereExpression Expression, WhereLogicalOperator? Operator)> expressions = new();
 
     internal WhereGroup() { }
+
+    /// <summary>
+    /// Read-only view of the expressions held by this group along with their preceding logical
+    /// operator (null for the first expression). Exposed so callers like SmartQuery's bulk
+    /// UPDATE / DELETE can graft a WhereClause from one builder onto another.
+    /// </summary>
+    public IReadOnlyList<(IWhereExpression Expression, WhereLogicalOperator? Operator)> Expressions => expressions;
+
+    /// <summary>
+    /// Adds an already-constructed <see cref="IWhereExpression"/> with the given logical operator.
+    /// The first expression added always has a null preceding operator, regardless of what is passed.
+    /// </summary>
+    public WhereGroup AddExpression(IWhereExpression expression, WhereLogicalOperator? logicalOperator)
+    {
+        expressions.Add((expression, expressions.Count == 0 ? null : logicalOperator));
+        return this;
+    }
 
     public WhereGroup And(string columnName, string operatorSymbol, object value)
     {
@@ -31,10 +44,10 @@ public sealed class WhereGroup : IWhereExpression
     {
         WhereGroup group = new WhereGroup();
         groupBuilder(group);
-        
+
         if (group.expressions.Count > 0)
             expressions.Add((group, expressions.Count == 0 ? null : WhereLogicalOperator.And));
-            
+
         return this;
     }
 
@@ -42,10 +55,10 @@ public sealed class WhereGroup : IWhereExpression
     {
         WhereGroup group = new WhereGroup();
         groupBuilder(group);
-        
+
         if (group.expressions.Count > 0)
             expressions.Add((group, expressions.Count == 0 ? null : WhereLogicalOperator.Or));
-        
+
         return this;
     }
 
@@ -53,31 +66,6 @@ public sealed class WhereGroup : IWhereExpression
     {
         WhereBooleanExpression whereBooleanExpression = new WhereBooleanExpression(booleanExpression);
         expressions.Add((whereBooleanExpression, expressions.Count == 0 ? null : WhereLogicalOperator.And));
-    }
-    
-    public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
-    {
-        if (expressions.Count == 0) 
-            return;
-
-        bool needsParentheses = expressions.Count > 1 && expressions.Any(valueTuple => valueTuple.Operator == WhereLogicalOperator.Or);
-        
-        if (needsParentheses) 
-            stringBuilder.Append(SqlKeywords.OPEN_PAREN);
-
-        foreach ((IWhereExpression expression, WhereLogicalOperator? logicalOperator) in expressions)
-        {
-            if (logicalOperator.HasValue)
-                stringBuilder
-                    .Append(SqlKeywords.SPACE)
-                    .Append(logicalOperator == WhereLogicalOperator.And ? SqlKeywords.AND : SqlKeywords.OR)
-                    .Append(SqlKeywords.SPACE);
-
-            expression.AppendTo(stringBuilder, parameterBag);
-        }
-
-        if (needsParentheses) 
-            stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
     }
 
     public bool HasConditions => expressions.Count > 0;

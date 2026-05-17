@@ -98,15 +98,17 @@ internal sealed class IncludableSmartQuery<TRoot, TCurrent> : IIncludableSmartQu
     public ISmartQuery<TRoot> With(string cteName, IQueryBuilder cteQuery) => innerQuery.With(cteName, cteQuery);
     public ISmartQuery<TRoot> WithRecursive(string cteName, IQueryBuilder cteQuery) => innerQuery.WithRecursive(cteName, cteQuery);
 
-    public Task<TRoot?> FirstOrDefaultAsync() => innerQuery.FirstOrDefaultAsync();
-    public Task<TRoot> FirstAsync() => innerQuery.FirstAsync();
-    public Task<List<TRoot>> ToListAsync() => innerQuery.ToListAsync();
-    public Task<int> CountAsync() => innerQuery.CountAsync();
-    public Task<bool> AnyAsync() => innerQuery.AnyAsync();
-    public Task<TResult?> MaxAsync<TResult>(Expression<Func<TRoot, TResult>> selector) => innerQuery.MaxAsync(selector);
-    public Task<TResult?> MinAsync<TResult>(Expression<Func<TRoot, TResult>> selector) => innerQuery.MinAsync(selector);
-    public Task<decimal> SumAsync(Expression<Func<TRoot, decimal>> selector) => innerQuery.SumAsync(selector);
-    public Task<double> AverageAsync(Expression<Func<TRoot, double>> selector) => innerQuery.AverageAsync(selector);
-    public Task<List<TResult>> ToListAsync<TResult>(Expression<Func<TRoot, TResult>> selector) where TResult : class => innerQuery.ToListAsync(selector);
-    public Task<Dictionary<TKey, List<TRoot>>> GroupByAsync<TKey>(Expression<Func<TRoot, TKey>> keySelector) where TKey : notnull => innerQuery.GroupByAsync(keySelector);
+    public Task<TRoot?> FirstOrDefaultAsync(System.Threading.CancellationToken cancellationToken = default) => innerQuery.FirstOrDefaultAsync(cancellationToken);
+    public Task<TRoot> FirstAsync(System.Threading.CancellationToken cancellationToken = default) => innerQuery.FirstAsync(cancellationToken);
+    public Task<List<TRoot>> ToListAsync(System.Threading.CancellationToken cancellationToken = default) => innerQuery.ToListAsync(cancellationToken);
+    public Task<int> CountAsync(System.Threading.CancellationToken cancellationToken = default) => innerQuery.CountAsync(cancellationToken);
+    public Task<bool> AnyAsync(System.Threading.CancellationToken cancellationToken = default) => innerQuery.AnyAsync(cancellationToken);
+    public Task<TResult?> MaxAsync<TResult>(Expression<Func<TRoot, TResult>> selector, System.Threading.CancellationToken cancellationToken = default) => innerQuery.MaxAsync(selector, cancellationToken);
+    public Task<TResult?> MinAsync<TResult>(Expression<Func<TRoot, TResult>> selector, System.Threading.CancellationToken cancellationToken = default) => innerQuery.MinAsync(selector, cancellationToken);
+    public Task<decimal> SumAsync(Expression<Func<TRoot, decimal>> selector, System.Threading.CancellationToken cancellationToken = default) => innerQuery.SumAsync(selector, cancellationToken);
+    public Task<double> AverageAsync(Expression<Func<TRoot, double>> selector, System.Threading.CancellationToken cancellationToken = default) => innerQuery.AverageAsync(selector, cancellationToken);
+    public Task<List<TResult>> ToListAsync<TResult>(Expression<Func<TRoot, TResult>> selector, System.Threading.CancellationToken cancellationToken = default) where TResult : class => innerQuery.ToListAsync(selector, cancellationToken);
+    public Task<Dictionary<TKey, List<TRoot>>> GroupByAsync<TKey>(Expression<Func<TRoot, TKey>> keySelector, System.Threading.CancellationToken cancellationToken = default) where TKey : notnull => innerQuery.GroupByAsync(keySelector, cancellationToken);
+    public Task<int> UpdateAsync(Expression<Func<TRoot, TRoot>> setterExpression, System.Threading.CancellationToken cancellationToken = default) => innerQuery.UpdateAsync(setterExpression, cancellationToken);
+    public Task<int> DeleteAsync(System.Threading.CancellationToken cancellationToken = default) => innerQuery.DeleteAsync(cancellationToken);
 }

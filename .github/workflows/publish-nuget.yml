@@ -69,6 +69,22 @@ jobs:
             --output ./artifacts \
             /p:Version=${{ env.VERSION }}
 
+      - name: Pack Rymote.Radiant.Adapters.SqlServer
+        run: |
+          dotnet pack Rymote.Radiant.Adapters.SqlServer/Rymote.Radiant.Adapters.SqlServer.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ env.VERSION }}
+
+      - name: Pack Rymote.Radiant.Adapters.MySql
+        run: |
+          dotnet pack Rymote.Radiant.Adapters.MySql/Rymote.Radiant.Adapters.MySql.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./artifacts \
+            /p:Version=${{ env.VERSION }}
+
       - name: Push to nuget.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

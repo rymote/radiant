@@ -1,8 +1,5 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Clauses.Where;
 using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
-using Rymote.Radiant.Sql.Parameters;
 
 namespace Rymote.Radiant.Sql.Clauses.Having;
 
@@ -38,18 +35,6 @@ public sealed class HavingClause : IQueryClause
     {
         havingGroup.Or(groupBuilder);
         return this;
-    }
-
-    public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
-    {
-        if (!havingGroup.HasConditions) return;
-
-        stringBuilder
-            .Append(SqlKeywords.SPACE)
-            .Append(SqlKeywords.HAVING)
-            .Append(SqlKeywords.SPACE);
-        
-        havingGroup.AppendTo(stringBuilder, parameterBag);
     }
 
     public bool HasConditions => havingGroup.HasConditions;

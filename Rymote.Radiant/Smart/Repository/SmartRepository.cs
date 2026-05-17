@@ -50,19 +50,31 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
     }
 
     private Rymote.Radiant.Sql.QueryCommand BuildCommand(InsertBuilder insertBuilder)
-        => _smartContext is not null
-            ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(insertBuilder, _smartContext.Adapter)
-            : Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(insertBuilder);
+    {
+        if (_smartContext is null)
+            throw new InvalidOperationException(
+                "SmartRepository requires a SmartContext to compile queries. Construct it with a SmartContext.");
+
+        return Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(insertBuilder, _smartContext.Adapter);
+    }
 
     private Rymote.Radiant.Sql.QueryCommand BuildCommand(UpdateBuilder updateBuilder)
-        => _smartContext is not null
-            ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(updateBuilder, _smartContext.Adapter)
-            : Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(updateBuilder);
+    {
+        if (_smartContext is null)
+            throw new InvalidOperationException(
+                "SmartRepository requires a SmartContext to compile queries. Construct it with a SmartContext.");
+
+        return Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(updateBuilder, _smartContext.Adapter);
+    }
 
     private Rymote.Radiant.Sql.QueryCommand BuildCommand(DeleteBuilder deleteBuilder)
-        => _smartContext is not null
-            ? Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(deleteBuilder, _smartContext.Adapter)
-            : Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(deleteBuilder);
+    {
+        if (_smartContext is null)
+            throw new InvalidOperationException(
+                "SmartRepository requires a SmartContext to compile queries. Construct it with a SmartContext.");
+
+        return Rymote.Radiant.Sql.Compiler.QueryCompiler.Compile(deleteBuilder, _smartContext.Adapter);
+    }
 
     public Task<TModel> InsertAsync(TModel model) => InsertAsync(model, CancellationToken.None);
 

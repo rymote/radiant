@@ -1,4 +1,3 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Compiler;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -10,11 +9,6 @@ public sealed class RawSqlExpression : ISqlExpression
     public RawSqlExpression(string rawSql)
     {
         RawSql = rawSql;
-    }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(RawSql);
     }
 
     public void Accept(SqlEmitter emitter)

@@ -1,4 +1,7 @@
 using System.Linq;
+using Npgsql;
+using Rymote.Radiant.Adapters;
+using Rymote.Radiant.Adapters.PostgreSql;
 using Rymote.Radiant.Smart.Configuration;
 using Rymote.Radiant.Smart.Expressions;
 using Rymote.Radiant.Smart.Metadata;
@@ -12,6 +15,7 @@ namespace Rymote.Radiant.Tests.Smart;
 public sealed class LinqPredicateTranslatorTests
 {
     private static IModelMetadata TestUserMetadata { get; } = LoadMetadata();
+    private static IDatabaseAdapter PostgresAdapter { get; } = BuildOfflinePostgresAdapter();
 
     private static IModelMetadata LoadMetadata()
     {
@@ -19,6 +23,12 @@ public sealed class LinqPredicateTranslatorTests
         ModelMetadataCache cache = new ModelMetadataCache(scanner);
         cache.RegisterModel<TestUser>();
         return cache.GetMetadata<TestUser>();
+    }
+
+    private static IDatabaseAdapter BuildOfflinePostgresAdapter()
+    {
+        NpgsqlDataSourceBuilder dataSourceBuilder = new NpgsqlDataSourceBuilder("Host=offline;Database=offline");
+        return new PostgreSqlAdapter(dataSourceBuilder.Build());
     }
 
     private static string CompileSelect(System.Linq.Expressions.Expression<System.Func<TestUser, bool>> predicate)
@@ -30,7 +40,7 @@ public sealed class LinqPredicateTranslatorTests
         LinqPredicateTranslator translator = new LinqPredicateTranslator(TestUserMetadata);
         translator.TranslateInto(predicate, selectBuilder);
 
-        return selectBuilder.Build().SqlText;
+        return selectBuilder.Build(PostgresAdapter).SqlText;
     }
 
     [Fact]

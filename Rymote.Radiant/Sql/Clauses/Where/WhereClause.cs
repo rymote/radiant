@@ -1,15 +1,19 @@
-﻿using System.Text;
 using Rymote.Radiant.Sql.Compiler;
-using Rymote.Radiant.Sql.Dialects;
 using Rymote.Radiant.Sql.Expressions;
-using Rymote.Radiant.Sql.Parameters;
 
 namespace Rymote.Radiant.Sql.Clauses.Where;
 
 public sealed class WhereClause : IQueryClause
 {
     private readonly WhereGroup rootGroup = new();
-    
+
+    /// <summary>
+    /// The top-level <see cref="WhereGroup"/>. Exposed to callers that need to graft conditions
+    /// from one clause onto another (for example, SmartQuery's bulk UPDATE / DELETE path
+    /// transfers a SELECT's WHERE into the UPDATE/DELETE builder).
+    /// </summary>
+    public WhereGroup RootGroup => rootGroup;
+
     public WhereClause Where(string columnName, string operatorSymbol, object value)
     {
         rootGroup.And(columnName, operatorSymbol, value);
@@ -49,18 +53,6 @@ public sealed class WhereClause : IQueryClause
     {
         rootGroup.AndBooleanExpression(booleanExpression);
         return this;
-    }
-    
-    public void AppendTo(StringBuilder stringBuilder, ParameterBag parameterBag)
-    {
-        if (!rootGroup.HasConditions) return;
-
-        stringBuilder
-            .Append(SqlKeywords.SPACE)
-            .Append(SqlKeywords.WHERE)
-            .Append(SqlKeywords.SPACE);
-        
-        rootGroup.AppendTo(stringBuilder, parameterBag);
     }
 
     public bool HasConditions => rootGroup.HasConditions;

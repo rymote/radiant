@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Rymote.Radiant.Sql.Compiler;
+﻿using Rymote.Radiant.Sql.Compiler;
 using Rymote.Radiant.Sql.Dialects;
 
 namespace Rymote.Radiant.Sql.Expressions;
@@ -33,29 +32,6 @@ public sealed class ArrayExpression : ISqlExpression
         Alias = alias;
         return this;
     }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        Left.AppendTo(stringBuilder);
-        stringBuilder.Append(SqlKeywords.SPACE).Append(GetOperatorString()).Append(SqlKeywords.SPACE);
-        Right.AppendTo(stringBuilder);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
-    }
-
-    private string GetOperatorString() => Operator switch
-    {
-        ArrayOperator.Contains => SqlKeywords.ARRAY_CONTAINS,
-        ArrayOperator.ContainedBy => SqlKeywords.ARRAY_CONTAINED_BY,
-        ArrayOperator.Overlap => SqlKeywords.ARRAY_OVERLAP,
-        ArrayOperator.Concatenate => SqlKeywords.ARRAY_CONCAT,
-        ArrayOperator.Equal => SqlKeywords.EQUALS.Trim(),
-        ArrayOperator.NotEqual => SqlKeywords.NOT_EQUALS.Trim(),
-        _ => throw new ArgumentOutOfRangeException()
-    };
 
     public static ArrayExpression Contains(string column, object[] array) =>
         new(new ColumnExpression(column), ArrayOperator.Contains, new ArrayLiteralExpression(array));
@@ -100,40 +76,6 @@ public sealed class ArrayLiteralExpression : ISqlExpression
         Value = value;
     }
 
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append("ARRAY[");
-        
-        for (int index = 0; index < Value.Length; index++)
-        {
-            object? element = Value.GetValue(index);
-            
-            if (element == null)
-            {
-                stringBuilder.Append(SqlKeywords.NULL);
-            }
-            else if (element is string str)
-            {
-                stringBuilder.Append(SqlKeywords.SINGLE_QUOTE)
-                    .Append(str.Replace(SqlKeywords.SINGLE_QUOTE, SqlKeywords.SINGLE_QUOTE + SqlKeywords.SINGLE_QUOTE))
-                    .Append(SqlKeywords.SINGLE_QUOTE);
-            }
-            else if (element is bool boolean)
-            {
-                stringBuilder.Append(boolean ? SqlKeywords.TRUE : SqlKeywords.FALSE);
-            }
-            else
-            {
-                stringBuilder.Append(element);
-            }
-            
-            if (index < Value.Length - 1)
-                stringBuilder.Append(SqlKeywords.COMMA);
-        }
-
-        stringBuilder.Append("]");
-    }
-
     public void Accept(SqlEmitter emitter)
     {
         emitter.WritePlaceholderForValue(Value);
@@ -156,24 +98,6 @@ public sealed class ArrayFunctionExpression : ISqlExpression
     {
         Alias = alias;
         return this;
-    }
-
-    public void AppendTo(StringBuilder stringBuilder)
-    {
-        stringBuilder.Append(FunctionName).Append(SqlKeywords.OPEN_PAREN);
-
-        for (int index = 0; index < Arguments.Length; index++)
-        {
-            if (index > 0) stringBuilder.Append(SqlKeywords.COMMA);
-            Arguments[index].AppendTo(stringBuilder);
-        }
-
-        stringBuilder.Append(SqlKeywords.CLOSE_PAREN);
-
-        if (!string.IsNullOrEmpty(Alias))
-            stringBuilder
-                .Append(SqlKeywords.SPACE).Append(SqlKeywords.AS).Append(SqlKeywords.SPACE)
-                .Append(SqlKeywords.QUOTE).Append(Alias).Append(SqlKeywords.QUOTE);
     }
 
     public static ArrayFunctionExpression ArrayLength(ISqlExpression array, int dimension = 1) =>
