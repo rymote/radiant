@@ -1,5 +1,10 @@
 <div align="center">
-  Rymote.Radiant - Adapter-driven SQL builder and ORM for .NET 10
+    <a href="https://github.com/rymote/radiant"><img src="https://github.com/rymote/radiant/blob/master/.github/rymote-radiant-cover.png" alt="rymote/radiant" /></a>
+</div>
+<br />
+
+<div align="center">
+  Rymote.Radiant - Adapter-driven SQL builder and ORM for .NET
 </div>
 
 <div align="center">
@@ -18,26 +23,25 @@ The library has two layers stacked vertically. At the bottom is a fluent, type-s
 
 Both layers are usable independently. You can drop down to raw builders when you need precise control over the emitted SQL, or stay on the SmartModel surface for everyday CRUD and querying. The legacy `User.Query()` / `await user.SaveAsync()` static API from earlier versions still works without modification — it routes through an ambient `SmartContext` when one is present, and falls back to the original static configuration path when not.
 
-## Key Features
+## Features
 
-- 🧩 **Adapter abstraction** — `IDatabaseAdapter` carries the dialect, identifier quoter, parameter formatter, value writer, and result mapper; every clause and expression emits through the adapter, never against hardcoded strings
-- 🐘 **PostgreSQL adapter** — full support for JSONB, arrays, vectors (pgvector), full-text search, ranges, CTEs, recursive CTEs, lateral joins, window functions, `RETURNING`, and `ON CONFLICT`
-- 📦 **SQLite adapter** — `$pN` placeholders, `0`/`1` booleans, FTS5 full-text, `RETURNING` (3.35+), `ON CONFLICT` upsert
-- 🪟 **SQL Server adapter** — `[bracket]` identifier quoting, `@pN` parameters, `OUTPUT` clause for returning rows, T-SQL keyword vocabulary
-- 🐬 **MySQL adapter** — backtick identifier quoting, `@pN` parameters, JSON `->`/`->>` extract operators, full-text `MATCH AGAINST`
-- 🧱 **Fluent SQL builder** — typed clause graph that compiles to a `QueryCommand` carrying both the SQL text and ordered parameters; round-tripped through `IDatabaseAdapter.CreateCommand` for execution
-- 🏷️ **Attribute-driven models** — `[Table]`, `[Column]`, `[PrimaryKey]`, `[ForeignKey]`, `[BelongsTo]`, `[HasOne]`, `[HasMany]`, `[Index]`, `[SoftDelete]`, `[Timestamps]`, `[Audit]`
-- 🧠 **LINQ predicates** — `Where(x => x.IsActive && ids.Contains(x.Id) && x.Email != null)`; method calls on `string` (`Contains`, `StartsWith`, `EndsWith`), `Enumerable.Contains` (translated to `IN`), null comparisons, boolean property access, captured closures
-- ✏️ **Bulk operations** — `Query<T>().Where(...).UpdateAsync(x => new { x.Archived = true })` and `Query<T>().Where(...).DeleteAsync()` emit single SQL statements with no client-side iteration
-- 🔗 **Include / ThenInclude** — typed chain via `IncludeChain(...).ThenInclude(...)`, plus dot-notation `Include("Parent.Child.Grandchild")` for deep navigation
-- 💼 **Ambient transactions** — `BeginTransactionAsync` on `SmartContext`; every subsequent repository, query, and raw command enlists automatically
-- 🏢 **Multi-tenant schema scoping** — `SmartContext.WithSchema("tenant_abc")` rewrites every emitted table reference to the chosen schema
-- 🆔 **Strongly-typed IDs** — register a `ValueConverter<TClr, TDatabase>` and Radiant applies it at every boundary (insert, update, predicate captures, result-mapping via Dapper type handlers, `FindAsync` lookups)
-- 🧵 **Async + CancellationToken** — every async method on `ISmartRepository<T>` and `ISmartQuery<T>` accepts a `CancellationToken` and threads it through to the underlying `DbCommand`
-- 🧪 **Source-generated result mappers** — `Rymote.Radiant.Generators` emits a per-model `DbDataReader` → CLR mapper that auto-registers via `[ModuleInitializer]`; the `QueryExecutor` uses it in preference to Dapper's reflection-based mapping (zero-allocation hot path, AOT-friendly)
-- 🪄 **Typed query extensions** — same generator emits `Where{Property}`, `Where{Property}Contains`, `Where{Property}Between`, `Where{Property}IsNull`, `Where{Property}After`/`Before`/`Today`/`ThisWeek`/`ThisMonth` per model property
-- 🔬 **Roslyn analyzers** — `Rymote.Radiant.Analyzers` catches common SmartModel and SQL builder mistakes at compile time
-- 🧰 **DI integration** — `services.AddRadiant(builder => builder.UsePostgreSql(connectionString))` registers everything
+- **Adapter abstraction** — `IDatabaseAdapter` carries the dialect, identifier quoter, parameter formatter, value writer, and result mapper; every clause and expression emits through the adapter, never against hardcoded strings.
+- **PostgreSQL adapter** — full support for JSONB, arrays, vectors (pgvector), full-text search, ranges, CTEs, recursive CTEs, lateral joins, window functions, `RETURNING`, and `ON CONFLICT`.
+- **SQLite adapter** — `$pN` placeholders, `0`/`1` booleans, FTS5 full-text, `RETURNING` (3.35+), `ON CONFLICT` upsert.
+- **SQL Server adapter** — `[bracket]` identifier quoting, `@pN` parameters, `OUTPUT` clause for returning rows, T-SQL keyword vocabulary.
+- **MySQL adapter** — backtick identifier quoting, `@pN` parameters, JSON `->`/`->>` extract operators, full-text `MATCH AGAINST`.
+- **Fluent SQL builder** — typed clause graph that compiles to a `QueryCommand` carrying both the SQL text and ordered parameters; round-tripped through `IDatabaseAdapter.CreateCommand` for execution.
+- **Attribute-driven models** — `[Table]`, `[Column]`, `[PrimaryKey]`, `[ForeignKey]`, `[BelongsTo]`, `[HasOne]`, `[HasMany]`, `[Index]`, `[SoftDelete]`, `[Timestamps]`, `[Audit]`.
+- **LINQ predicates** — `Where(x => x.IsActive && ids.Contains(x.Id) && x.Email != null)`; method calls on `string` (`Contains`, `StartsWith`, `EndsWith`), `Enumerable.Contains` (translated to `IN`), null comparisons, boolean property access, captured closures.
+- **Bulk operations** — `Query<T>().Where(...).UpdateAsync(x => new { x.Archived = true })` and `Query<T>().Where(...).DeleteAsync()` emit single SQL statements with no client-side iteration.
+- **Include / ThenInclude** — typed chain via `IncludeChain(...).ThenInclude(...)`, plus dot-notation `Include("Parent.Child.Grandchild")` for deep navigation.
+- **Ambient transactions** — `BeginTransactionAsync` on `SmartContext`; every subsequent repository, query, and raw command enlists automatically.
+- **Multi-tenant schema scoping** — `SmartContext.WithSchema("tenant_abc")` rewrites every emitted table reference to the chosen schema.
+- **Strongly-typed IDs** — register a `ValueConverter<TClr, TDatabase>` and Radiant applies it at every boundary.
+- **Async + CancellationToken** — every async method on `ISmartRepository<T>` and `ISmartQuery<T>` accepts a `CancellationToken` and threads it through to the underlying `DbCommand`.
+- **Source-generated result mappers** — zero-allocation hot path, AOT-friendly.
+- **Roslyn analyzers** — catch common SmartModel and SQL builder mistakes at compile time.
+- **DI integration** — `services.AddRadiant(builder => builder.UsePostgreSql(connectionString))` registers everything.
 
 ## Projects
 
@@ -45,22 +49,22 @@ Both layers are usable independently. You can drop down to raw builders when you
 Core library. Defines the `IDatabaseAdapter` contract, the SQL builder graph, the `SqlEmitter`, the `QueryCompiler`, the SmartModel layer (`SmartModel`, `SmartContext`, `SmartQuery`, `SmartRepository`, `SmartRawQuery`), attribute-based metadata, the `LinqPredicateTranslator`, and the DI builder. Depends only on `Microsoft.Extensions.DependencyInjection.Abstractions` and `System.Text.Json` — no database driver.
 
 ### [Rymote.Radiant.Adapters.PostgreSql](./Rymote.Radiant.Adapters.PostgreSql)
-PostgreSQL adapter. Brings `Npgsql` and `Dapper` as dependencies. Implements `PostgreSqlDialect`, `PostgreSqlIdentifierQuoter`, `PostgreSqlParameterFormatter`, `PostgreSqlValueWriter`, `DapperResultMapper`, and the `UsePostgreSql(...)` builder extension. Full feature coverage: JSONB operators (`@>`, `<@`, `?`, `?|`, `?&`, `@?`, `@@`, `#-`, `||`), array operators, pgvector distance operators (`<->`, `<#>`, `<=>`, `<+>`), full-text search functions, range operators, RETURNING, ON CONFLICT, LATERAL joins.
+PostgreSQL adapter. Brings `Npgsql` and `Dapper` as dependencies. Full feature coverage: JSONB operators, array operators, pgvector distance operators, full-text search functions, range operators, RETURNING, ON CONFLICT, LATERAL joins.
 
 ### [Rymote.Radiant.Adapters.Sqlite](./Rymote.Radiant.Adapters.Sqlite)
-SQLite adapter. Brings `Microsoft.Data.Sqlite` and `Dapper`. SQLite uses `$pN` placeholders rather than PostgreSQL's `@pN`, emits `1`/`0` for booleans, and `NotSupportedException`s out of vector / range / lateral operators. An end-to-end test in the test project runs a compiled query against an in-memory SQLite database to prove the loop closes.
+SQLite adapter. Brings `Microsoft.Data.Sqlite` and `Dapper`. Uses `$pN` placeholders, emits `1`/`0` for booleans, supports FTS5 full-text, `RETURNING` (3.35+), and `ON CONFLICT` upsert.
 
 ### [Rymote.Radiant.Adapters.SqlServer](./Rymote.Radiant.Adapters.SqlServer)
-Microsoft SQL Server adapter. Brings `Microsoft.Data.SqlClient` and `Dapper`. Uses `[bracket]` identifier quoting, `@pN` named parameters, the T-SQL `OUTPUT` clause for `RETURNING`-style row hydration, and `1`/`0` bit literals for booleans. JSON, JSONB containment, vector, range, full-text, and `ON CONFLICT` operators throw `NotSupportedException` from their dialect properties — SQL Server has different syntactic forms for those (e.g., `MERGE` for upserts, `CONTAINS`/`FREETEXT` for full-text) which are reached via raw SQL on this adapter.
+Microsoft SQL Server adapter. Brings `Microsoft.Data.SqlClient` and `Dapper`. Uses `[bracket]` identifier quoting, `@pN` named parameters, the T-SQL `OUTPUT` clause for `RETURNING`-style row hydration, and `1`/`0` bit literals for booleans.
 
 ### [Rymote.Radiant.Adapters.MySql](./Rymote.Radiant.Adapters.MySql)
-MySQL adapter. Brings `MySqlConnector` and `Dapper`. Uses backtick identifier quoting, `@pN` named parameters, `1`/`0` bit literals, and `MATCH AGAINST` full-text. JSON access via `->` and `->>` is supported; JSONB containment, array, vector, range operators, `RETURNING`, and PostgreSQL-style `ON CONFLICT` throw `NotSupportedException` — for MySQL upserts, drop down to raw SQL with `INSERT … ON DUPLICATE KEY UPDATE`.
+MySQL adapter. Brings `MySqlConnector` and `Dapper`. Uses backtick identifier quoting, `@pN` named parameters, `1`/`0` bit literals, and `MATCH AGAINST` full-text. JSON access via `->` and `->>` is supported.
 
 ### [Rymote.Radiant.Analyzers](./Rymote.Radiant.Analyzers)
 Roslyn analyzers. Catches misuse of the SmartModel attributes and the SQL builder at compile time.
 
 ### [Rymote.Radiant.Generators](./Rymote.Radiant.Generators)
-Source generator. For every `SmartModel<T>` subclass, emits two things: (1) typed `Where{PropertyName}(...)`, `Where{PropertyName}Contains(...)`, `Where{PropertyName}Between(...)`, `Where{PropertyName}IsNull(...)`, `Where{PropertyName}After/Before/Today/ThisWeek/ThisMonth(...)`, and similar extension methods, scoped to the property's CLR type; (2) a `{ModelName}RadiantResultMapper` class that materializes `DbDataReader` rows directly into model instances and auto-registers itself with `SourceGeneratedMapperRegistry` via `[ModuleInitializer]`. When a generated mapper is registered for a CLR type, `QueryExecutor` uses it in preference to Dapper's reflection-based mapping — zero-allocation hot path, AOT-friendly.
+Source generator. Emits typed `Where{PropertyName}(...)` helpers and per-model `DbDataReader → CLR` result mappers that auto-register via `[ModuleInitializer]`.
 
 ## Installation
 
@@ -79,7 +83,7 @@ dotnet add package Rymote.Radiant.Adapters.MySql
 
 The core package transitively brings in `Rymote.Radiant.Analyzers` and `Rymote.Radiant.Generators`; no separate install required.
 
-## Quick Start
+## Quick start
 
 ### 1. Register Radiant in DI
 
@@ -106,8 +110,6 @@ var app = builder.Build();
 ```
 
 ### 2. Wire an ambient `SmartContext` per request
-
-For ASP.NET Core, set the ambient context once per HTTP request so the legacy static `User.Query()` API also works:
 
 ```csharp
 using Rymote.Radiant.Smart.Context;
@@ -161,7 +163,6 @@ public class User : SmartModel<User>
 ### 4. Query and mutate
 
 ```csharp
-// Using the instance-based SmartContext (recommended)
 await using SmartContext context = serviceProvider.GetRequiredService<SmartContext>();
 
 User? user = await context.Query<User>()
@@ -182,7 +183,7 @@ User? sameUser = await User.Query()
 await sameUser!.SaveAsync();
 ```
 
-## Defining Models
+## Defining models
 
 Models inherit from `SmartModel<TModel>` and use attributes to describe the schema mapping.
 
@@ -191,20 +192,18 @@ Models inherit from `SmartModel<TModel>` and use attributes to describe the sche
 | Attribute | Purpose |
 |---|---|
 | `[Table(name, schema = null)]` | Maps the class to a table. Optional schema name. |
-| `[Column(name, databaseType = null)]` | Maps a property to a column. `databaseType` overrides the inferred type (e.g. `"jsonb"`, `"text[]"`, `"vector"`, `"tsvector"`). |
-| `[PrimaryKey]` | Marks the primary key. Combine with `IsAutoIncrement` on the metadata for serial/identity columns. |
-| `[ForeignKey(referencedTable, referencedColumn)]` | Declares a foreign key. Used by metadata, not for runtime cascade. |
+| `[Column(name, databaseType = null)]` | Maps a property to a column. `databaseType` overrides the inferred type. |
+| `[PrimaryKey]` | Marks the primary key. |
+| `[ForeignKey(referencedTable, referencedColumn)]` | Declares a foreign key. |
 | `[BelongsTo(typeof(Parent), foreignKeyProperty)]` | Many-to-one navigation. Loaded via `Include`. |
 | `[HasOne(typeof(Child), foreignKeyProperty)]` | One-to-one navigation. |
 | `[HasMany(typeof(Child), foreignKeyProperty)]` | One-to-many navigation. |
-| `[Index(columns, name = null, isUnique = false)]` | Declares an index. Pure metadata; not auto-applied. |
-| `[SoftDelete]` | Adds an implicit `WHERE deleted_at IS NULL` to every query. Toggle off with `.WithTrashed()` or `.OnlyTrashed()`. |
+| `[Index(columns, name = null, isUnique = false)]` | Declares an index. |
+| `[SoftDelete]` | Adds an implicit `WHERE deleted_at IS NULL` to every query. |
 | `[Timestamps]` | Auto-populates `CreatedAt` / `UpdatedAt` on insert and update. |
-| `[Audit]` | Hooks for `CreatedByUserId` / `UpdatedByUserId` via an `ICurrentUserAccessor` (wiring is v3.1). |
+| `[Audit]` | Hooks for `CreatedByUserId` / `UpdatedByUserId` via an `ICurrentUserAccessor`. |
 
 ### Strongly-typed IDs
-
-Register a value converter so an `OrderId` value object round-trips cleanly:
 
 ```csharp
 radiantBuilder.AddValueConverter<OrderId, string>(
@@ -212,13 +211,11 @@ radiantBuilder.AddValueConverter<OrderId, string>(
     fromDatabase: rawValue => new OrderId(rawValue));
 ```
 
-The converter is applied automatically at every boundary: when `SmartRepository` writes property values during `InsertAsync` / `UpdateAsync` (including the primary-key `WHERE` clauses on update/delete), when `LinqPredicateTranslator` captures a value inside `Where(x => x.Id == someOrderId)`, when `SmartModel.FindAsync(someOrderId)` builds its lookup, and when Dapper materializes a result row back into a CLR property (via a generated `SqlMapper.TypeHandler<T>` registered once per converter type at `AddRadiant` time). Collection-valued predicates such as `WhereIn` walk each element through the converter as well.
+The converter is applied automatically at every boundary: during `InsertAsync` / `UpdateAsync`, when capturing values inside `Where`, when `SmartModel.FindAsync(...)` builds its lookup, and when Dapper materializes a result row.
 
 ## Querying
 
 ### LINQ predicates
-
-`SmartQuery<T>.Where(predicate)` translates expression trees through `LinqPredicateTranslator`. Supported shapes:
 
 | LINQ | SQL |
 |---|---|
@@ -229,9 +226,8 @@ The converter is applied automatically at every boundary: when `SmartRepository`
 | `user => user.Email.Contains("@example.com")` | `"email" LIKE '%@example.com%'` |
 | `user => ids.Contains(user.Id)` | `"id" IN (@p0, @p1, ...)` |
 | `user => user.IsActive` | `"is_active" = TRUE` |
-| `user => !user.IsArchived` | `"is_archived" = FALSE` |
 
-The translator also accepts the source-generator typed helpers:
+### Typed query extensions
 
 ```csharp
 context.Query<User>()
@@ -253,8 +249,6 @@ DateTime? max   = await context.Query<User>().MaxAsync(user => user.CreatedAt);
 
 ### Include / ThenInclude
 
-Dot-notation is supported on the base `Include(string)`:
-
 ```csharp
 await context.Query<Order>()
     .Include("OrderShipment.Customer.AccountManager.User")
@@ -262,7 +256,7 @@ await context.Query<Order>()
     .FirstOrDefaultAsync();
 ```
 
-Or use the typed chain:
+Or the typed chain:
 
 ```csharp
 using Rymote.Radiant.Smart.Loading;
@@ -276,17 +270,6 @@ await context.Query<Order>()
     .FirstOrDefaultAsync();
 ```
 
-Both forms feed the same batched relationship loader: one secondary `SELECT ... WHERE foreign_key IN (...)` per level, regardless of result set size.
-
-### Soft delete
-
-Models annotated with `[SoftDelete]` are filtered out by default. Override per-query:
-
-```csharp
-List<User> deletedUsers   = await context.Query<User>().OnlyTrashed().ToListAsync();
-List<User> includingTrash = await context.Query<User>().WithTrashed().ToListAsync();
-```
-
 ### Raw SQL escape hatch
 
 ```csharp
@@ -296,52 +279,26 @@ List<DashboardRow> rows = await context.Raw().QueryAsync<DashboardRow>(
     parameters: new { startDate = DateTime.UtcNow.AddDays(-30) });
 ```
 
-`Raw()` enlists on the ambient transaction automatically and accepts a `CancellationToken`.
-
 ## Mutations
-
-### Insert, Update, Save
 
 ```csharp
 User user = new User { Email = "alice@example.com", Username = "alice" };
 await context.Repository<User>().InsertAsync(user);
-// user.Id is now populated (RETURNING id)
 
 user.Username = "alice.new";
 await context.Repository<User>().UpdateAsync(user);
 
-// Or via SaveAsync — chooses INSERT or UPDATE by primary-key value
 await user.SaveAsync();
-```
 
-### Upsert
-
-```csharp
+// Upsert
 User hydrated = await context.Repository<User>().UpsertAsync(user);
-```
 
-On adapters that report `DatabaseCapabilities.UpsertOnConflict` (PostgreSQL and SQLite ship with this), `UpsertAsync` emits a single-trip `INSERT … ON CONFLICT (pk_col) DO UPDATE SET col = EXCLUDED.col, … RETURNING *` — the returning row hydrates the model in place (auto-generated PKs, timestamps, and any database defaults are reflected). On adapters without the capability the call falls back to the historical Insert-or-Update routing based on the primary-key value.
-
-The raw builder exposes `InsertBuilder.OnConflictDoUpdateFromExcluded(conflictColumns, columnsToUpdateFromExcluded)` for direct use — emits the correct EXCLUDED-alias case per dialect (`EXCLUDED` on PostgreSQL, `excluded` on SQLite).
-
-### Bulk insert
-
-```csharp
-List<User> newUsers = LoadUsersFromCsv();
+// Bulk insert
 IReadOnlyList<User> inserted = await context.Repository<User>().InsertManyAsync(newUsers);
-```
 
-### Delete and soft delete
-
-```csharp
-bool deleted = await context.Repository<User>().DeleteAsync(user);
-
-// Soft delete (when [SoftDelete] is present)
+// Soft delete
 bool softDeleted = await context.Repository<User>().SoftDeleteAsync(user);
 bool restored    = await context.Repository<User>().RestoreAsync(user);
-
-// Bypass soft delete and hard-delete
-bool hardDeleted = await context.Repository<User>().ForceDeleteAsync(user);
 ```
 
 ## Transactions
@@ -359,7 +316,7 @@ await context.Raw().ExecuteAsync(
 await transaction.CommitAsync(cancellationToken);
 ```
 
-The transaction stays on the `SmartContext` for its lifetime. Every subsequent `Repository`, `Query`, and `Raw` call enlists automatically. Disposing without committing rolls back.
+The transaction stays on the `SmartContext` for its lifetime. Every subsequent `Repository`, `Query`, and `Raw` call enlists automatically.
 
 ## Multi-tenant schema scoping
 
@@ -369,33 +326,7 @@ List<Customer> customers = await tenantContext.Query<Customer>().ToListAsync();
 // Emitted SQL: SELECT ... FROM "tenant_abc123"."customers" ...
 ```
 
-The schema name flows into every emitted `FromClause`, including those produced by `Include` / `ThenInclude` relationship loads. The metadata cache stays shared across tenant contexts.
-
 ## Adapters and capabilities
-
-Each adapter declares which features it supports via `DatabaseCapabilities`:
-
-```csharp
-[Flags]
-public enum DatabaseCapabilities : long
-{
-    ReturningClause, UpsertOnConflict, UpsertMerge,
-    CommonTableExpression, RecursiveCommonTableExpression,
-    LateralJoin, WindowFunctions, SchemaPerTable,
-    JsonbColumn, ArrayColumn, VectorColumn, FullTextSearch, RangeTypes,
-    CaseInsensitiveText, SpatialTypes, CaseInsensitiveLikeOperator,
-    RegularExpressionOperator, NamedSequences, BatchedInsertReturning,
-}
-```
-
-Check capabilities before using engine-specific features:
-
-```csharp
-if (context.Adapter.Capabilities.HasFlag(DatabaseCapabilities.JsonbColumn))
-{
-    query = query.WhereJsonbContains(user => user.ProfileData, new { plan = "premium" });
-}
-```
 
 | Capability | PostgreSQL | SQLite | SQL Server | MySQL |
 |---|---|---|---|---|
@@ -412,79 +343,11 @@ if (context.Adapter.Capabilities.HasFlag(DatabaseCapabilities.JsonbColumn))
 | `FullTextSearch` | ✅ | partial (FTS5) | partial (`CONTAINS`/`FREETEXT`) | ✅ (`MATCH AGAINST`) |
 | `RangeTypes` | ✅ | ❌ | ❌ | ❌ |
 | `CaseInsensitiveText` | ✅ (citext) | ❌ | ✅ (collation) | ✅ (collation) |
-| `CaseInsensitiveLikeOperator` | ✅ (`ILIKE`) | ❌ (LIKE is CI by default) | ❌ (LIKE is collation-dependent) | ❌ (LIKE is CI by default) |
+| `CaseInsensitiveLikeOperator` | ✅ (`ILIKE`) | ❌ | ❌ | ❌ |
 | `RegularExpressionOperator` | ✅ | ❌ | ❌ | ✅ (`REGEXP`) |
 | `BatchedInsertReturning` | ✅ | ❌ | ✅ | ❌ |
 
-## PostgreSQL-specific features
-
-### JSONB
-
-```csharp
-context.Query<User>()
-    .WhereJsonbContains(user => user.ProfileData, new { plan = "premium" })
-    .WhereJsonbHasKey(user => user.ProfileData, "verified")
-    .WhereJsonbHasAnyKeys(user => user.ProfileData, "email_verified", "phone_verified")
-    .WhereJsonbPathExists(user => user.ProfileData, "$.preferences.language")
-    .ToListAsync();
-```
-
-### Arrays
-
-```csharp
-context.Query<User>()
-    .WhereArrayContains<string>(user => user.Tags, "admin", "moderator")
-    .WhereArrayOverlaps<string>(user => user.Tags, "vip", "premium")
-    .ToListAsync();
-```
-
-### Full-text search
-
-```csharp
-context.Query<Article>()
-    .WhereFullTextSearch(article => article.Body, "linq adapter pattern", language: "english")
-    .OrderByFullTextRank(article => article.Body, "linq adapter pattern")
-    .ToListAsync();
-```
-
-### Vector similarity (pgvector)
-
-```csharp
-using Rymote.Radiant.Sql.Expressions;
-
-float[] queryEmbedding = await embeddingService.EmbedAsync("similar to this");
-
-context.Query<Document>()
-    .WhereVectorSimilarity(
-        document => document.Embedding,
-        queryEmbedding,
-        VectorOperator.CosineDistance,
-        threshold: 0.3f)
-    .OrderByVectorDistance(
-        document => document.Embedding,
-        queryEmbedding,
-        VectorOperator.CosineDistance)
-    .Take(10)
-    .ToListAsync();
-```
-
-### CTEs and recursive CTEs
-
-```csharp
-SelectBuilder rootCategories = new SelectBuilder()
-    .Select(new ColumnExpression("id"), new ColumnExpression("name"), new ColumnExpression("parent_id"), new RawSqlExpression("0 AS level"))
-    .From("categories")
-    .WhereNull("parent_id");
-
-context.Query<Category>()
-    .WithRecursive("category_tree", rootCategories)
-    .Where("parent_id", "IS NOT", null)
-    .ToListAsync();
-```
-
 ## SQL builder (low level)
-
-When you need precise control, drop down to the builder:
 
 ```csharp
 using Rymote.Radiant.Sql.Builder;
@@ -504,71 +367,9 @@ SelectBuilder selectBuilder = new SelectBuilder()
     .Limit(25, offset: 0);
 
 QueryCommand compiled = selectBuilder.Build(context.Adapter);
-IEnumerable<UserOrderSummary> rows = await context.Adapter.ResultMapper
-    .QueryAsync<UserOrderSummary>(/* DbCommand */, cancellationToken);
 ```
 
-`Build(adapter)` returns a `QueryCommand` with the dialect-correct SQL text and ordered parameter list. The legacy `Build()` (no adapter) remains for backward compatibility and emits PostgreSQL-flavoured SQL.
-
-## Writing a new adapter
-
-Adding a new database engine is mechanical — implement six interfaces and register a builder extension:
-
-```csharp
-public sealed class MySqlDialect          : ISqlDialect          { /* keywords, sub-dialects */ }
-public sealed class MySqlIdentifierQuoter : IIdentifierQuoter    { /* `name` backtick quoting  */ }
-public sealed class MySqlParameterFormatter : IParameterFormatter { /* "?" placeholders        */ }
-public sealed class MySqlValueWriter      : IValueWriter         { /* literal serialization     */ }
-public sealed class MySqlResultMapper     : IResultMapper        { /* DbCommand -> TResult     */ }
-
-public sealed class MySqlAdapter : IDatabaseAdapter
-{
-    public string Identifier => "mysql";
-    public DatabaseCapabilities Capabilities => /* ... */;
-    public ISqlDialect Dialect { get; } = new MySqlDialect();
-    public IIdentifierQuoter IdentifierQuoter { get; } = new MySqlIdentifierQuoter();
-    public IParameterFormatter ParameterFormatter { get; } = new MySqlParameterFormatter();
-    public IValueWriter ValueWriter { get; } = new MySqlValueWriter();
-    public IResultMapper ResultMapper { get; } = new MySqlResultMapper();
-
-    public DbConnection CreateConnection() { /* MySqlConnection */ }
-    public Task<DbConnection> OpenConnectionAsync(CancellationToken token) { /* ... */ }
-    public DbCommand CreateCommand(DbConnection connection, CompiledQuery compiled) { /* ... */ }
-}
-
-public static class MySqlBuilderExtensions
-{
-    public static RadiantBuilder UseMySql(this RadiantBuilder builder, string connectionString)
-        => builder.UseAdapter(_ => new MySqlAdapter(connectionString));
-}
-```
-
-Zero changes to the core library or any clause/expression. The SQLite adapter (`Rymote.Radiant.Adapters.Sqlite`) is itself a worked example of this pattern.
-
-## Configuration reference
-
-```csharp
-services.AddRadiant(builder =>
-{
-    builder.UsePostgreSql(connectionString, dataSourceBuilder =>
-    {
-        dataSourceBuilder.EnableDynamicJson();
-        dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 100;
-    });
-
-    builder.RegisterModelsFromAssembly(typeof(User).Assembly);
-
-    builder.AddValueConverter<OrderId, string>(
-        toDatabase: id => id.Value,
-        fromDatabase: raw => new OrderId(raw));
-
-    builder.AddGlobalQueryFilter(new TenantQueryFilter());
-
-    builder.WithCommandTimeout(60);
-});
-```
-
-`SmartContext` is registered as `Scoped` — one per DI scope (per request in ASP.NET Core). The connection is opened lazily on first use; `Dispose` / `DisposeAsync` releases it.
+`Build(adapter)` returns a `QueryCommand` with the dialect-correct SQL text and ordered parameter list.
 
 ## Architecture
 
@@ -602,12 +403,6 @@ services.AddRadiant(builder =>
                 │   SqlEmitter    │  Buffer + ParameterBag + active Adapter
                 └────────┬────────┘
                          │
-        ┌────────────────┼────────────────┐
-        ▼                ▼                ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│ ISqlDialect  │  │IIdentifierQ. │  │IParameterFmt │  ... + IValueWriter + IResultMapper
-└──────────────┘  └──────────────┘  └──────────────┘
-                         │
                 ┌────────▼────────┐
                 │IDatabaseAdapter │  PostgreSqlAdapter / SqliteAdapter / ...
                 └────────┬────────┘
@@ -619,22 +414,20 @@ services.AddRadiant(builder =>
 
 ## Testing
 
-`Rymote.Radiant.Tests` (xUnit) covers:
-
-- **LinqPredicateTranslator** — every supported predicate shape
-- **SmartContextAmbient** — DI registration, ambient-context Use/Dispose semantics
-- **AdapterCompilePath** — cross-path snapshot tests proving the new adapter-aware compile produces byte-identical SQL to the legacy AppendTo path for SELECT / INSERT-RETURNING / UPDATE / DELETE / DISTINCT / JSONB
-- **SqliteAdapter** — placeholder prefix differs from PostgreSQL, capabilities flags correctly exclude unsupported features, end-to-end execution against an in-memory SQLite database
-
-Run with:
-
 ```bash
 dotnet test Rymote.Radiant.Tests/Rymote.Radiant.Tests.csproj
 ```
 
+## Support the project
+
+If Radiant has helped you ship faster, please consider supporting ongoing development:
+
+- [Patreon](https://www.patreon.com/rymote)
+- [Open Collective](https://opencollective.com/rymote)
+
 ## License
 
-This project is licensed under the MIT License — see [LICENSE.md](./LICENSE.md) for details.
+This project is licensed under the BSD 3-Clause License — see [LICENSE.md](./LICENSE.md) for details.
 
 ## Authors
 
