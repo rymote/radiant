@@ -83,6 +83,9 @@ public sealed class RadiantBuilder
 
         ValueConverterDapperRegistry.Register(valueConverters);
 
+        foreach (KeyValuePair<Type, ValueConverter> entry in valueConverters)
+            Rymote.Radiant.Smart.Mapping.ValueConverterRuntimeRegistry.Register(entry.Key, entry.Value);
+
         return new SmartContextOptions(
             adapter,
             metadataCache,

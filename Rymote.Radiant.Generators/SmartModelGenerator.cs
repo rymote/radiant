@@ -471,7 +471,11 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
             SpecialType.System_String  => "reader.GetString(columnIndex)",
             SpecialType.System_DateTime => "reader.GetDateTime(columnIndex)",
             _ when underlyingType.Name == "Guid" => "reader.GetGuid(columnIndex)",
-            _ => $"reader.GetFieldValue<{fullyQualifiedType}>(columnIndex)"
+            // Non-primitive types may have a registered ValueConverter; route through the runtime
+            // registry. When no converter is registered for this CLR type the helper falls back to
+            // reader.GetFieldValue<T>(), preserving the original behaviour for types the provider
+            // already understands.
+            _ => $"global::Rymote.Radiant.Smart.Mapping.ValueConverterRuntimeRegistry.Read<{fullyQualifiedType}>(reader, columnIndex)"
         };
     }
 
