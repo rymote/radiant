@@ -19,6 +19,22 @@ public interface ISmartQuery<TModel> where TModel : class, new()
     ISmartQuery<TModel> WhereIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery);
     ISmartQuery<TModel> WhereNotIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery);
 
+    /// <summary>
+    /// Restricts the result set to rows whose <paramref name="property"/> value appears in
+    /// <paramref name="values"/>. Emits a parameterised <c>IN (...)</c> clause with one
+    /// placeholder per value. Each value is bound through the normal Dapper parameter
+    /// pipeline, so Radiant value converters registered for <typeparamref name="TKey"/>
+    /// apply element-wise. An empty <paramref name="values"/> sequence is treated as a
+    /// match-nothing filter (emits <c>1 = 0</c>) so the query stays valid.
+    /// </summary>
+    ISmartQuery<TModel> WhereIn<TKey>(Expression<Func<TModel, TKey>> property, IEnumerable<TKey> values);
+
+    /// <summary>
+    /// The negation of <see cref="WhereIn{TKey}(Expression{Func{TModel, TKey}}, IEnumerable{TKey})"/>.
+    /// An empty <paramref name="values"/> sequence is treated as a match-all filter.
+    /// </summary>
+    ISmartQuery<TModel> WhereNotIn<TKey>(Expression<Func<TModel, TKey>> property, IEnumerable<TKey> values);
+
     ISmartQuery<TModel> OrWhere(Expression<Func<TModel, bool>> predicate);
     ISmartQuery<TModel> OrWhere(string columnName, string operatorSymbol, object value);
 

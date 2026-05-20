@@ -64,6 +64,8 @@ internal sealed class IncludableSmartQuery<TRoot, TCurrent> : IIncludableSmartQu
     public ISmartQuery<TRoot> WhereNotExists(IQueryBuilder subquery) => innerQuery.WhereNotExists(subquery);
     public ISmartQuery<TRoot> WhereIn(Expression<Func<TRoot, object>> property, IQueryBuilder subquery) => innerQuery.WhereIn(property, subquery);
     public ISmartQuery<TRoot> WhereNotIn(Expression<Func<TRoot, object>> property, IQueryBuilder subquery) => innerQuery.WhereNotIn(property, subquery);
+    public ISmartQuery<TRoot> WhereIn<TKey>(Expression<Func<TRoot, TKey>> property, IEnumerable<TKey> values) => innerQuery.WhereIn(property, values);
+    public ISmartQuery<TRoot> WhereNotIn<TKey>(Expression<Func<TRoot, TKey>> property, IEnumerable<TKey> values) => innerQuery.WhereNotIn(property, values);
     public ISmartQuery<TRoot> OrWhere(Expression<Func<TRoot, bool>> predicate) => innerQuery.OrWhere(predicate);
     public ISmartQuery<TRoot> OrWhere(string columnName, string operatorSymbol, object value) => innerQuery.OrWhere(columnName, operatorSymbol, value);
     public ISmartQuery<TRoot> OrderBy(Expression<Func<TRoot, object>> keySelector) => innerQuery.OrderBy(keySelector);

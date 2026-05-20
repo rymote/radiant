@@ -95,6 +95,44 @@ public sealed class AdapterCompilePathTests
     }
 
     [Fact]
+    public void WhereInWithArrayEmitsElementwisePlaceholders()
+    {
+        Guid[] ids = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+
+        SelectBuilder selectBuilder = new SelectBuilder()
+            .Select(new ColumnExpression("id"))
+            .From("users")
+            .Where("id", "IN", (object)ids);
+
+        var compiled = selectBuilder.Build(PostgresAdapter);
+        string sql = compiled.SqlText;
+
+        Assert.Contains("\"id\" IN (", sql);
+        // One placeholder per array element, comma-separated. Adapter uses @p0, @p1, @p2.
+        Assert.Contains("@p0", sql);
+        Assert.Contains("@p1", sql);
+        Assert.Contains("@p2", sql);
+        Assert.Equal(3, compiled.OrderedParameters.Count);
+    }
+
+    [Fact]
+    public void WhereNotInWithArrayEmitsNotInClause()
+    {
+        int[] excludedIds = new[] { 1, 2 };
+
+        SelectBuilder selectBuilder = new SelectBuilder()
+            .Select(new ColumnExpression("id"))
+            .From("users")
+            .Where("id", "NOT IN", (object)excludedIds);
+
+        var compiled = selectBuilder.Build(PostgresAdapter);
+        string sql = compiled.SqlText;
+
+        Assert.Contains("\"id\" NOT IN (", sql);
+        Assert.Equal(2, compiled.OrderedParameters.Count);
+    }
+
+    [Fact]
     public void JsonbContainsRoutesThroughDialect()
     {
         SelectBuilder selectBuilder = new SelectBuilder()

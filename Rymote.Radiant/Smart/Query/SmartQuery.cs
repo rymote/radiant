@@ -142,6 +142,36 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         return this;
     }
 
+    public ISmartQuery<TModel> WhereIn<TKey>(Expression<Func<TModel, TKey>> property, IEnumerable<TKey> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        string columnName = GetColumnNameFromExpression(property);
+        TKey[] materialized = values as TKey[] ?? values.ToArray();
+        if (materialized.Length == 0)
+        {
+            // Match nothing — an empty IN(...) would be a syntax error in SQL.
+            _selectBuilder.Where("1", "=", 0);
+            return this;
+        }
+        _selectBuilder.Where(columnName, "IN", (object)materialized);
+        return this;
+    }
+
+    public ISmartQuery<TModel> WhereNotIn<TKey>(Expression<Func<TModel, TKey>> property, IEnumerable<TKey> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        string columnName = GetColumnNameFromExpression(property);
+        TKey[] materialized = values as TKey[] ?? values.ToArray();
+        if (materialized.Length == 0)
+        {
+            // Match all — an empty NOT IN(...) is conventionally treated as no filter.
+            _selectBuilder.Where("1", "=", 1);
+            return this;
+        }
+        _selectBuilder.Where(columnName, "NOT IN", (object)materialized);
+        return this;
+    }
+
     public ISmartQuery<TModel> OrWhere(Expression<Func<TModel, bool>> predicate)
     {
         WhereExpressionVisitor visitor = new WhereExpressionVisitor(_modelMetadata);
