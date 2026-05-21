@@ -33,6 +33,17 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
     private QueryExecutor CreateExecutor()
         => new QueryExecutor(_databaseConnection, _smartContext?.AmbientTransaction);
 
+    /// <summary>
+    /// Effective schema name for SQL emission: <see cref="SmartContext.SchemaOverride"/> takes
+    /// precedence over the schema declared on the model's <c>[Table]</c> attribute, so a
+    /// schema-scoped context (e.g. <c>SmartContext.WithSchema("identity")</c>) routes writes to
+    /// the correct schema even when the model leaves <c>SchemaName</c> empty.
+    /// </summary>
+    private string? EffectiveSchemaName =>
+        string.IsNullOrWhiteSpace(_smartContext?.SchemaOverride)
+            ? _modelMetadata.SchemaName
+            : _smartContext!.SchemaOverride;
+
     private object? ApplyConverterToDatabase(object? value)
     {
         if (value is null || _smartContext is null) return value;
@@ -81,7 +92,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
     public async Task<TModel> InsertAsync(TModel model, CancellationToken cancellationToken)
     {
         InsertBuilder insertBuilder = new InsertBuilder()
-            .Into(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .Into(_modelMetadata.TableName, EffectiveSchemaName);
 
         List<string> returningColumns = new List<string>();
 
@@ -169,7 +180,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
 
         UpdateBuilder updateBuilder = new UpdateBuilder()
-            .Table(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .Table(_modelMetadata.TableName, EffectiveSchemaName);
 
         bool updatedAtWasSet = false;
 
@@ -244,7 +255,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
 
         DeleteBuilder deleteBuilder = new DeleteBuilder()
-            .From(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .From(_modelMetadata.TableName, EffectiveSchemaName);
 
         object? primaryKeyValue = _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model);
         object? primaryKeyForDatabase = ApplyConverterToDatabase(primaryKeyValue);
@@ -267,7 +278,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
 
         UpdateBuilder updateBuilder = new UpdateBuilder()
-            .Table(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .Table(_modelMetadata.TableName, EffectiveSchemaName);
 
         DateTime now = DateTime.UtcNow;
         updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.DeletedAtPropertyName), now);
@@ -296,7 +307,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             throw new InvalidOperationException($"Model {typeof(TModel).Name} does not have a primary key");
 
         UpdateBuilder updateBuilder = new UpdateBuilder()
-            .Table(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .Table(_modelMetadata.TableName, EffectiveSchemaName);
 
         updateBuilder.Set(ConvertPropertyNameToColumnName(_modelMetadata.DeletedAtPropertyName), null);
 
@@ -341,7 +352,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
     private async Task<TModel> UpsertWithNativeOnConflictAsync(TModel model, CancellationToken cancellationToken)
     {
         InsertBuilder insertBuilder = new InsertBuilder()
-            .Into(_modelMetadata.TableName, _modelMetadata.SchemaName);
+            .Into(_modelMetadata.TableName, EffectiveSchemaName);
 
         List<string> columnsToUpdateFromExcluded = new List<string>();
         List<string> allColumnNames = new List<string>();
