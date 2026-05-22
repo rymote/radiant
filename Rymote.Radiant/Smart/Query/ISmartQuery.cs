@@ -16,6 +16,8 @@ public interface ISmartQuery<TModel> where TModel : class, new()
     ISmartQuery<TModel> WhereRaw(string rawSql, params object[] parameters);
     ISmartQuery<TModel> WhereExists(IQueryBuilder subquery);
     ISmartQuery<TModel> WhereNotExists(IQueryBuilder subquery);
+    ISmartQuery<TModel> WhereNull(string columnName);
+    ISmartQuery<TModel> WhereNotNull(string columnName);
     ISmartQuery<TModel> WhereIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery);
     ISmartQuery<TModel> WhereNotIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery);
 

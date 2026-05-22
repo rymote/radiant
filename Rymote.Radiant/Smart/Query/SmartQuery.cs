@@ -128,6 +128,18 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         return this;
     }
 
+    public ISmartQuery<TModel> WhereNull(string columnName)
+    {
+        _selectBuilder.WhereNull(columnName);
+        return this;
+    }
+
+    public ISmartQuery<TModel> WhereNotNull(string columnName)
+    {
+        _selectBuilder.WhereNotNull(columnName);
+        return this;
+    }
+
     public ISmartQuery<TModel> WhereIn(Expression<Func<TModel, object>> property, IQueryBuilder subquery)
     {
         string columnName = GetColumnNameFromExpression(property);
