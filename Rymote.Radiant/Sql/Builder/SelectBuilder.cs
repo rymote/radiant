@@ -565,6 +565,10 @@ public sealed class SelectBuilder : IQueryBuilder
         QueryBuilderStateValidator.ValidateBuilderState(FromClause != null, "SelectBuilder",
             "From", "Limit");
 
+        // A SelectBuilder may emit SQL multiple times (e.g. when SmartQuery re-uses the same
+        // query for both a paged-list call and a count call). Replace any existing LimitClause
+        // so the SQL doesn't accumulate "... LIMIT N OFFSET 0 LIMIT N OFFSET 0" on each call.
+        additionalClauses.RemoveAll(clause => clause is LimitClause);
         additionalClauses.Add(new LimitClause(limit, offset));
         return this;
     }
