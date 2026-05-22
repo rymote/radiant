@@ -20,7 +20,7 @@ public sealed class SqlExpressionsGenerator : IIncrementalGenerator
     {
         StringBuilder sourceBuilder = new StringBuilder();
 
-        sourceBuilder.AppendLine("#nullable disable");
+        sourceBuilder.AppendLine("#nullable disable warnings");
         sourceBuilder.AppendLine("using System;");
         sourceBuilder.AppendLine("using Rymote.Radiant.Sql.Expressions;");
         sourceBuilder.AppendLine("using Rymote.Radiant.Sql.Builder;");
