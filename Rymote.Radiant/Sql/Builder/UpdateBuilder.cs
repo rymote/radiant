@@ -17,7 +17,7 @@ public sealed class UpdateBuilder : IQueryBuilder
     public WhereClause WhereClause { get; } = new();
     public ReturningClause? ReturningClause { get; private set; }
 
-    internal readonly List<(string ColumnName, object Value)> pendingAssignments = new();
+    internal readonly List<(string ColumnName, object? Value)> pendingAssignments = new();
     internal readonly List<(string ColumnName, ISqlExpression Expression)> pendingExpressionAssignments = new();
 
     public UpdateBuilder Table(string tableName, string? schemaName = null)
@@ -29,12 +29,12 @@ public sealed class UpdateBuilder : IQueryBuilder
         return this;
     }
 
-    public UpdateBuilder Set(string columnName, object value)
+    public UpdateBuilder Set(string columnName, object? value)
     {
-        QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName), 
+        QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
             "Column name is required for SET clause");
 
-        QueryBuilderStateValidator.ValidateBuilderState(TableClause != null, "UpdateBuilder", 
+        QueryBuilderStateValidator.ValidateBuilderState(TableClause != null, "UpdateBuilder",
             "Table", "Set");
 
         pendingAssignments.Add((columnName, value));
@@ -96,7 +96,7 @@ public sealed class UpdateBuilder : IQueryBuilder
         foreach ((string columnName, ISqlExpression expression) in pendingExpressionAssignments)
             assignments.Add(new SetExpressionAssignment(columnName, expression));
     
-        foreach ((string columnName, object value) in pendingAssignments)
+        foreach ((string columnName, object? value) in pendingAssignments)
         {
             string parameterName = parameterBag.Add(value);
             assignments.Add(new SetParameterAssignment(columnName, parameterName));

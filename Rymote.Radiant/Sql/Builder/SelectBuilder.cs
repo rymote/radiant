@@ -176,7 +176,7 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
-    public SelectBuilder Where(string columnName, string operatorSymbol, object value)
+    public SelectBuilder Where(string columnName, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
             "Column name is required for WHERE condition");

@@ -34,16 +34,28 @@ public sealed class ArrayExpression : ISqlExpression
     }
 
     public static ArrayExpression Contains(string column, object[] array) =>
-        new(new ColumnExpression(column), ArrayOperator.Contains, new ArrayLiteralExpression(array));
+        Contains(new ColumnExpression(column), array);
+
+    public static ArrayExpression Contains(ISqlExpression column, object[] array) =>
+        new(column, ArrayOperator.Contains, new ArrayLiteralExpression(array));
 
     public static ArrayExpression ContainedBy(string column, object[] array) =>
-        new(new ColumnExpression(column), ArrayOperator.ContainedBy, new ArrayLiteralExpression(array));
+        ContainedBy(new ColumnExpression(column), array);
+
+    public static ArrayExpression ContainedBy(ISqlExpression column, object[] array) =>
+        new(column, ArrayOperator.ContainedBy, new ArrayLiteralExpression(array));
 
     public static ArrayExpression Overlap(string column, object[] array) =>
-        new(new ColumnExpression(column), ArrayOperator.Overlap, new ArrayLiteralExpression(array));
+        Overlap(new ColumnExpression(column), array);
+
+    public static ArrayExpression Overlap(ISqlExpression column, object[] array) =>
+        new(column, ArrayOperator.Overlap, new ArrayLiteralExpression(array));
 
     public static ArrayExpression Concatenate(string column, object[] array) =>
-        new(new ColumnExpression(column), ArrayOperator.Concatenate, new ArrayLiteralExpression(array));
+        Concatenate(new ColumnExpression(column), array);
+
+    public static ArrayExpression Concatenate(ISqlExpression column, object[] array) =>
+        new(column, ArrayOperator.Concatenate, new ArrayLiteralExpression(array));
 
     public void Accept(SqlEmitter emitter)
     {

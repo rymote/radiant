@@ -4,9 +4,9 @@ namespace Rymote.Radiant.Sql.Expressions;
 
 public sealed class LiteralExpression : ISqlExpression
 {
-    public object Value { get; }
+    public object? Value { get; }
 
-    public LiteralExpression(object value)
+    public LiteralExpression(object? value)
     {
         Value = value;
     }
@@ -23,5 +23,5 @@ public sealed class LiteralExpression : ISqlExpression
     public static LiteralExpression Number(int value) => new(value);
     public static LiteralExpression Number(decimal value) => new(value);
     public static LiteralExpression Boolean(bool value) => new(value);
-    public static LiteralExpression Null() => new(null!);
+    public static LiteralExpression Null() => new((object?)null);
 }

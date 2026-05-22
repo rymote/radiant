@@ -489,7 +489,7 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
             case "numeric[]":
             case "decimal[]":
                 if (value is Array array)
-                    return new CastExpression(new ArrayLiteralExpression(array as object[]), databaseType);
+                    return new CastExpression(new ArrayLiteralExpression((object[])array), databaseType);
 
                 return new CastExpression(new LiteralExpression(value), databaseType);
 

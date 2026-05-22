@@ -24,11 +24,17 @@ public sealed class VectorExpression : ISqlExpression
     }
 
     public static VectorExpression L2Distance(string column, float[] vector) =>
-        new(new ColumnExpression(column), VectorOperator.L2Distance, new VectorLiteralExpression(vector));
+        L2Distance(new ColumnExpression(column), vector);
+
+    public static VectorExpression L2Distance(ISqlExpression column, float[] vector) =>
+        new(column, VectorOperator.L2Distance, new VectorLiteralExpression(vector));
 
     public static VectorExpression CosineSimilarity(string column, float[] vector) =>
+        CosineSimilarity(new ColumnExpression(column), vector);
+
+    public static VectorExpression CosineSimilarity(ISqlExpression column, float[] vector) =>
         new(new LiteralExpression(1), VectorOperator.CosineDistance,
-            new VectorExpression(new ColumnExpression(column), VectorOperator.CosineDistance,
+            new VectorExpression(column, VectorOperator.CosineDistance,
                 new VectorLiteralExpression(vector)));
 
     public void Accept(SqlEmitter emitter)

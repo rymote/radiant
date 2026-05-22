@@ -173,7 +173,8 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         List<object> primaryKeyValues = models
             .Select(model => _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model))
-            .Where(value => value != null)
+            .Where(value => value is not null)
+            .Select(value => value!)
             .Distinct()
             .ToList();
 
@@ -223,7 +224,8 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         List<object> primaryKeyValues = models
             .Select(model => _modelMetadata.PrimaryKey.PropertyInfo.GetValue(model))
-            .Where(value => value != null)
+            .Where(value => value is not null)
+            .Select(value => value!)
             .Distinct()
             .ToList();
 
@@ -312,7 +314,8 @@ public sealed class RelationshipLoader<TModel> : IRelationshipLoader where TMode
 
         List<object> foreignKeyValues = models
             .Select(model => localForeignKeyProperty.PropertyInfo.GetValue(model))
-            .Where(value => value != null)
+            .Where(value => value is not null)
+            .Select(value => value!)
             .Distinct()
             .ToList();
 

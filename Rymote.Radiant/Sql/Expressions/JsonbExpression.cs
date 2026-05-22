@@ -30,10 +30,16 @@ public sealed class JsonbExpression : ISqlExpression
     }
 
     public static JsonbExpression PathExists(string column, string jsonPath) =>
-        new(new ColumnExpression(column), JsonbOperator.PathExists, new LiteralExpression(jsonPath));
+        PathExists(new ColumnExpression(column), jsonPath);
+
+    public static JsonbExpression PathExists(ISqlExpression column, string jsonPath) =>
+        new(column, JsonbOperator.PathExists, new LiteralExpression(jsonPath));
 
     public static JsonbExpression PathQuery(string column, string jsonPath) =>
-        new(new FunctionExpression("jsonb_path_query", new ColumnExpression(column), new LiteralExpression(jsonPath)),
+        PathQuery(new ColumnExpression(column), jsonPath);
+
+    public static JsonbExpression PathQuery(ISqlExpression column, string jsonPath) =>
+        new(new FunctionExpression("jsonb_path_query", column, new LiteralExpression(jsonPath)),
             JsonbOperator.StrictContains, new LiteralExpression("{}"));
 
     public void Accept(SqlEmitter emitter)
