@@ -104,7 +104,7 @@ public sealed class SmartQuery<TModel> : ISmartQuery<TModel> where TModel : clas
         return this;
     }
 
-    public ISmartQuery<TModel> Where(string columnName, string operatorSymbol, object value)
+    public ISmartQuery<TModel> Where(string columnName, string operatorSymbol, object? value)
     {
         _selectBuilder.Where(columnName, operatorSymbol, value);
         return this;

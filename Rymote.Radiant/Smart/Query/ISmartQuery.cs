@@ -12,7 +12,7 @@ public interface ISmartQuery<TModel> where TModel : class, new()
 {
     ISmartQuery<TModel> Schema(string schemaName);
     ISmartQuery<TModel> Where(Expression<Func<TModel, bool>> predicate);
-    ISmartQuery<TModel> Where(string columnName, string operatorSymbol, object value);
+    ISmartQuery<TModel> Where(string columnName, string operatorSymbol, object? value);
     ISmartQuery<TModel> WhereRaw(string rawSql, params object[] parameters);
     ISmartQuery<TModel> WhereExists(IQueryBuilder subquery);
     ISmartQuery<TModel> WhereNotExists(IQueryBuilder subquery);

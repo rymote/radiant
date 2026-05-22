@@ -26,14 +26,14 @@ public sealed class WhereGroup : IWhereExpression
         return this;
     }
 
-    public WhereGroup And(string columnName, string operatorSymbol, object value)
+    public WhereGroup And(string columnName, string operatorSymbol, object? value)
     {
         WhereCondition condition = new WhereCondition(columnName, operatorSymbol, value);
         expressions.Add((condition, expressions.Count == 0 ? null : WhereLogicalOperator.And));
         return this;
     }
 
-    public WhereGroup Or(string columnName, string operatorSymbol, object value)
+    public WhereGroup Or(string columnName, string operatorSymbol, object? value)
     {
         WhereCondition condition = new WhereCondition(columnName, operatorSymbol, value);
         expressions.Add((condition, expressions.Count == 0 ? null : WhereLogicalOperator.Or));

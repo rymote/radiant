@@ -6,9 +6,9 @@ public sealed class WhereCondition : IWhereExpression
 {
     public string ColumnName { get; }
     public string OperatorSymbol { get; }
-    public object Value { get; }
+    public object? Value { get; }
 
-    public WhereCondition(string columnName, string operatorSymbol, object value)
+    public WhereCondition(string columnName, string operatorSymbol, object? value)
     {
         ColumnName = columnName;
         OperatorSymbol = operatorSymbol;

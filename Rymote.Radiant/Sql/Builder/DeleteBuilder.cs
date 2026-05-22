@@ -23,7 +23,7 @@ public sealed class DeleteBuilder : IQueryBuilder
         return this;
     }
 
-    public DeleteBuilder Where(string columnName, string operatorSymbol, object value)
+    public DeleteBuilder Where(string columnName, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName), 
             "Column name is required for WHERE condition");

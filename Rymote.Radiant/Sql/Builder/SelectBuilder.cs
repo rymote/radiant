@@ -272,7 +272,7 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
-    public SelectBuilder And(string columnName, string operatorSymbol, object value)
+    public SelectBuilder And(string columnName, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
             "Column name is required for AND condition");
@@ -287,7 +287,7 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
-    public SelectBuilder Or(string columnName, string operatorSymbol, object value)
+    public SelectBuilder Or(string columnName, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
             "Column name is required for OR condition");
@@ -326,7 +326,7 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
-    public SelectBuilder Having(string expression, string operatorSymbol, object value)
+    public SelectBuilder Having(string expression, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(expression, nameof(expression),
             "Expression is required for HAVING condition (e.g., 'COUNT(id)', 'SUM(amount)')");
@@ -341,7 +341,7 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
-    public SelectBuilder HavingAnd(string expression, string operatorSymbol, object value)
+    public SelectBuilder HavingAnd(string expression, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(expression, nameof(expression),
             "Expression is required for HAVING AND condition");
@@ -356,7 +356,7 @@ public sealed class SelectBuilder : IQueryBuilder
         return this;
     }
 
-    public SelectBuilder HavingOr(string expression, string operatorSymbol, object value)
+    public SelectBuilder HavingOr(string expression, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(expression, nameof(expression),
             "Expression is required for HAVING OR condition");

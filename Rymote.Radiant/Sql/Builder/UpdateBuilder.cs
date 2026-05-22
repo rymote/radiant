@@ -53,7 +53,7 @@ public sealed class UpdateBuilder : IQueryBuilder
         return this;
     }
 
-    public UpdateBuilder Where(string columnName, string operatorSymbol, object value)
+    public UpdateBuilder Where(string columnName, string operatorSymbol, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName), 
             "Column name is required for WHERE condition");

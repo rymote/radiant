@@ -58,7 +58,7 @@ internal sealed class IncludableSmartQuery<TRoot, TCurrent> : IIncludableSmartQu
 
     public ISmartQuery<TRoot> Schema(string schemaName) => innerQuery.Schema(schemaName);
     public ISmartQuery<TRoot> Where(Expression<Func<TRoot, bool>> predicate) => innerQuery.Where(predicate);
-    public ISmartQuery<TRoot> Where(string columnName, string operatorSymbol, object value) => innerQuery.Where(columnName, operatorSymbol, value);
+    public ISmartQuery<TRoot> Where(string columnName, string operatorSymbol, object? value) => innerQuery.Where(columnName, operatorSymbol, value);
     public ISmartQuery<TRoot> WhereRaw(string rawSql, params object[] parameters) => innerQuery.WhereRaw(rawSql, parameters);
     public ISmartQuery<TRoot> WhereExists(IQueryBuilder subquery) => innerQuery.WhereExists(subquery);
     public ISmartQuery<TRoot> WhereNotExists(IQueryBuilder subquery) => innerQuery.WhereNotExists(subquery);

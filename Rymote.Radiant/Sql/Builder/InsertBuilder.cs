@@ -34,7 +34,7 @@ public sealed class InsertBuilder : IQueryBuilder
         return this;
     }
 
-    public InsertBuilder Value(string columnName, object value)
+    public InsertBuilder Value(string columnName, object? value)
     {
         QueryBuilderStateValidator.ValidateNotNullOrWhiteSpace(columnName, nameof(columnName),
             "Column name is required for VALUES clause");

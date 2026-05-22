@@ -7,19 +7,19 @@ public sealed class HavingClause : IQueryClause
 {
     private readonly WhereGroup havingGroup = new();
 
-    public HavingClause Having(string expression, string operatorSymbol, object value)
+    public HavingClause Having(string expression, string operatorSymbol, object? value)
     {
         havingGroup.And(expression, operatorSymbol, value);
         return this;
     }
 
-    public HavingClause And(string expression, string operatorSymbol, object value)
+    public HavingClause And(string expression, string operatorSymbol, object? value)
     {
         havingGroup.And(expression, operatorSymbol, value);
         return this;
     }
 
-    public HavingClause Or(string expression, string operatorSymbol, object value)
+    public HavingClause Or(string expression, string operatorSymbol, object? value)
     {
         havingGroup.Or(expression, operatorSymbol, value);
         return this;

@@ -14,19 +14,19 @@ public sealed class WhereClause : IQueryClause
     /// </summary>
     public WhereGroup RootGroup => rootGroup;
 
-    public WhereClause Where(string columnName, string operatorSymbol, object value)
+    public WhereClause Where(string columnName, string operatorSymbol, object? value)
     {
         rootGroup.And(columnName, operatorSymbol, value);
         return this;
     }
 
-    public WhereClause And(string columnName, string operatorSymbol, object value)
+    public WhereClause And(string columnName, string operatorSymbol, object? value)
     {
         rootGroup.And(columnName, operatorSymbol, value);
         return this;
     }
 
-    public WhereClause Or(string columnName, string operatorSymbol, object value)
+    public WhereClause Or(string columnName, string operatorSymbol, object? value)
     {
         rootGroup.Or(columnName, operatorSymbol, value);
         return this;
@@ -44,7 +44,7 @@ public sealed class WhereClause : IQueryClause
         return this;
     }
 
-    public WhereClause AddCondition(string columnName, string operatorSymbol, object value)
+    public WhereClause AddCondition(string columnName, string operatorSymbol, object? value)
     {
         return Where(columnName, operatorSymbol, value);
     }
