@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Rymote.Radiant.Smart.Metadata;
@@ -453,7 +454,11 @@ public sealed class SmartRepository<TModel> : ISmartRepository<TModel> where TMo
         {
             case "jsonb":
             case "json":
-                return new CastExpression(new LiteralExpression(value), databaseType);
+                // Npgsql cannot bind arbitrary .NET objects (List<T>, Dictionary<K,V>, custom
+                // records) to a jsonb/json parameter without a type hint. Serialize to JSON text
+                // here so the parameter is always a string, then cast on the SQL side.
+                string jsonText = value is string alreadyJson ? alreadyJson : JsonSerializer.Serialize(value);
+                return new CastExpression(new LiteralExpression(jsonText), databaseType);
 
             case "uuid":
                 return new CastExpression(new LiteralExpression(value.ToString()), "uuid");
