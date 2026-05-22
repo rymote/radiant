@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -457,6 +458,17 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
         ITypeSymbol underlyingType = GetUnderlyingType(property.Type);
         string fullyQualifiedType = GetFullTypeName(underlyingType);
 
+        // jsonb / json columns are emitted as strings by Postgres and must be deserialised into
+        // the CLR type via System.Text.Json. The [Column(..., databaseType: "jsonb")] hint on the
+        // property carries this information, so the generated mapper reads the column as a string
+        // and routes it through JsonSerializer.Deserialize. Without this branch the row mapper
+        // would call reader.GetFieldValue<List<T>> which Npgsql cannot satisfy for jsonb columns.
+        string? databaseType = GetColumnDatabaseType(property);
+        if (databaseType is "jsonb" or "json")
+        {
+            return $"global::System.Text.Json.JsonSerializer.Deserialize<{fullyQualifiedType}>(reader.GetString(columnIndex))!";
+        }
+
         return underlyingType.SpecialType switch
         {
             SpecialType.System_Boolean => "reader.GetBoolean(columnIndex)",
@@ -477,6 +489,27 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
             // already understands.
             _ => $"global::Rymote.Radiant.Smart.Mapping.ValueConverterRuntimeRegistry.Read<{fullyQualifiedType}>(reader, columnIndex)"
         };
+    }
+
+    private static string? GetColumnDatabaseType(IPropertySymbol property)
+    {
+        AttributeData? columnAttribute = property.GetAttributes()
+            .FirstOrDefault(attribute => attribute.AttributeClass?.Name == "ColumnAttribute");
+        if (columnAttribute is null) return null;
+
+        foreach (KeyValuePair<string, TypedConstant> namedArgument in columnAttribute.NamedArguments)
+        {
+            if (namedArgument.Key == "databaseType" && namedArgument.Value.Value is string namedValue)
+                return namedValue;
+        }
+
+        if (columnAttribute.ConstructorArguments.Length >= 4 &&
+            columnAttribute.ConstructorArguments[3].Value is string positionalValue)
+        {
+            return positionalValue;
+        }
+
+        return null;
     }
 
     private static string BuildDefaultExpressionForProperty(IPropertySymbol property)
