@@ -73,7 +73,7 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
         string namespaceName = classSymbol.ContainingNamespace.ToDisplayString();
         string className = classSymbol.Name;
 
-        sourceBuilder.AppendLine("#nullable enable");
+        sourceBuilder.AppendLine("#nullable disable");
         sourceBuilder.AppendLine($"namespace {namespaceName};");
         sourceBuilder.AppendLine();
         sourceBuilder.AppendLine($"public static class {className}SmartQueryExtensions");
@@ -389,7 +389,7 @@ public sealed class SmartModelGenerator : IIncrementalGenerator
             .ToImmutableArray();
 
         StringBuilder sourceBuilder = new StringBuilder();
-        sourceBuilder.AppendLine("#nullable enable");
+        sourceBuilder.AppendLine("#nullable disable");
         sourceBuilder.AppendLine();
         sourceBuilder.AppendLine($"namespace Rymote.Radiant.GeneratedMappers;");
         sourceBuilder.AppendLine();
